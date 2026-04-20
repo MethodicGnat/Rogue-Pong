@@ -46,8 +46,8 @@ function update() {
     rightScore++;
   }
 
-  if (ballX < 0) { rightScore += 10; resetBall(1); }
-  if (ballX > W) { leftScore  += 10; resetBall(-1); }
+  if (ballX < 0) { rightScore += 5; resetBall(1); }
+  if (ballX > W) { leftScore  += 5; resetBall(-1); }
 }
 
 function draw() {
