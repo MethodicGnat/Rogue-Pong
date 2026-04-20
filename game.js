@@ -37,15 +37,17 @@ function update() {
   if (ballX <= 20 + PAD_W && ballY + BALL_SIZE >= leftY && ballY <= leftY + PAD_H && ballDX < 0) {
     ballDX *= -1;
     ballX = 20 + PAD_W;
+    leftScore++;
   }
 
   if (ballX + BALL_SIZE >= W - 20 - PAD_W && ballY + BALL_SIZE >= rightY && ballY <= rightY + PAD_H && ballDX > 0) {
     ballDX *= -1;
     ballX = W - 20 - PAD_W - BALL_SIZE;
+    rightScore++;
   }
 
-  if (ballX < 0) { rightScore++; resetBall(1); }
-  if (ballX > W) { leftScore++;  resetBall(-1); }
+  if (ballX < 0) { rightScore += 5; resetBall(1); }
+  if (ballX > W) { leftScore  += 5; resetBall(-1); }
 }
 
 function draw() {
