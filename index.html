@@ -7,7 +7,81 @@
 </head>
 <body>
   <canvas id="c" width="800" height="500"></canvas>
-  <p>Left: W/S &nbsp;|&nbsp; Right: ↑/↓</p>
+  <p id="controls-hint">Left: W/S &nbsp;|&nbsp; Right: ↑/↓ &nbsp;|&nbsp; <kbd>P</kbd> or <kbd>Esc</kbd> — Pause</p>
+
+  <!-- Pause / Main Menu Overlay -->
+  <div id="overlay" class="overlay active">
+    <div class="menu-box" id="main-menu">
+      <div class="menu-title">PONG</div>
+      <div class="menu-subtitle">ARCADE EDITION</div>
+      <div class="menu-divider"></div>
+      <button class="menu-btn primary" id="btn-start">▶ Start Game</button>
+      <button class="menu-btn" id="btn-settings-main">⚙ Settings</button>
+    </div>
+
+    <div class="menu-box hidden" id="pause-menu">
+      <div class="menu-title small">PAUSED</div>
+      <div class="menu-divider"></div>
+      <button class="menu-btn primary" id="btn-resume">▶ Resume</button>
+      <button class="menu-btn" id="btn-restart">↺ Restart</button>
+      <button class="menu-btn" id="btn-settings-pause">⚙ Settings</button>
+      <button class="menu-btn danger" id="btn-main-menu">✕ Main Menu</button>
+    </div>
+
+    <div class="menu-box hidden" id="settings-menu">
+      <div class="menu-title small">SETTINGS</div>
+      <div class="menu-divider"></div>
+
+      <div class="setting-row">
+        <label>Ball Speed</label>
+        <div class="btn-group">
+          <button class="opt-btn" data-setting="ballSpeed" data-value="slow">Slow</button>
+          <button class="opt-btn active" data-setting="ballSpeed" data-value="normal">Normal</button>
+          <button class="opt-btn" data-setting="ballSpeed" data-value="fast">Fast</button>
+        </div>
+      </div>
+
+      <div class="setting-row">
+        <label>Paddle Size</label>
+        <div class="btn-group">
+          <button class="opt-btn" data-setting="paddleSize" data-value="small">Small</button>
+          <button class="opt-btn active" data-setting="paddleSize" data-value="normal">Normal</button>
+          <button class="opt-btn" data-setting="paddleSize" data-value="large">Large</button>
+        </div>
+      </div>
+
+      <div class="setting-row">
+        <label>Win Score</label>
+        <div class="btn-group">
+          <button class="opt-btn" data-setting="winScore" data-value="5">5</button>
+          <button class="opt-btn active" data-setting="winScore" data-value="10">10</button>
+          <button class="opt-btn" data-setting="winScore" data-value="20">20</button>
+          <button class="opt-btn" data-setting="winScore" data-value="0">∞</button>
+        </div>
+      </div>
+
+      <div class="setting-row">
+        <label>Ball Trail</label>
+        <div class="btn-group">
+          <button class="opt-btn active" data-setting="trail" data-value="on">On</button>
+          <button class="opt-btn" data-setting="trail" data-value="off">Off</button>
+        </div>
+      </div>
+
+      <div class="menu-divider"></div>
+      <button class="menu-btn primary" id="btn-settings-back">← Back</button>
+    </div>
+
+    <!-- Winner Screen -->
+    <div class="menu-box hidden" id="winner-menu">
+      <div class="menu-title small" id="winner-title">LEFT WINS!</div>
+      <div class="winner-score" id="winner-score"></div>
+      <div class="menu-divider"></div>
+      <button class="menu-btn primary" id="btn-play-again">▶ Play Again</button>
+      <button class="menu-btn" id="btn-winner-main">✕ Main Menu</button>
+    </div>
+  </div>
+
   <script src="game.js"></script>
 </body>
 </html>
