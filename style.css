@@ -1,22 +1,27 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
 body {
-  background: #000;
+  background: #111;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  height: 100vh;
-  margin: 0;
-  color: #fff;
-  font-family: monospace;
+  min-height: 100vh;
 }
 
 canvas {
-  border: 2px solid #fff;
   display: block;
+  background: #000;
 }
 
-p {
-  margin: 8px 0 0;
-  font-size: 13px;
-  color: #aaa;
+.controls {
+  color: #555;
+  font-family: monospace;
+  font-size: 12px;
+  text-align: center;
+  margin-top: 10px;
 }
