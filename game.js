@@ -14,6 +14,7 @@ let ballX = W / 2, ballY = H / 2;
 let ballDX = 4 * (Math.random() < 0.5 ? 1 : -1);
 let ballDY = 3 * (Math.random() < 0.5 ? 1 : -1);
 let leftScore = 0, rightScore = 0;
+let current
 
 const keys = {};
 document.addEventListener('keydown', e => { keys[e.key] = true; e.preventDefault(); });
@@ -48,10 +49,6 @@ function update() {
   ballX += ballDX;
   ballY += ballDY;
 
-  // Wrap through top/bottom walls instead of bouncing
-  if (ballY + BALL_SIZE < 0) ballY += H;
-  if (ballY > H)             ballY -= H;
-
   // Left paddle collision
   if (ballX <= 20 + PAD_W && ballDX < 0 && paddleHit(leftY)) {
     ballDX *= -1;
@@ -78,21 +75,13 @@ function draw() {
   ctx.fillStyle = '#fff';
   for (let y = 0; y < H; y += 20) ctx.fillRect(W / 2 - 1, y, 2, 10);
 
-  // Ghost ball — faint preview at the opposite edge when ball is near a wall
-  if (ballY < 40 || ballY > H - 40 - BALL_SIZE) {
-    const ghostY = ballY < 40 ? ballY + H : ballY - H;
-    ctx.globalAlpha = 0.3;
-    ctx.fillStyle = '#0ff';
-    ctx.fillRect(ballX, ghostY, BALL_SIZE, BALL_SIZE);
-    ctx.globalAlpha = 1;
-  }
-
   // Paddles
   ctx.fillStyle = '#fff';
   ctx.fillRect(20, leftY, PAD_W, PAD_H);
   ctx.fillRect(W - 20 - PAD_W, rightY, PAD_W, PAD_H);
 
   // Ball (cyan glow to signal wrap mode)
+
   ctx.fillStyle = 'rgb(255, 255, 255)';
   ctx.shadowColor = 'rgb(255, 255, 255)';
   ctx.shadowBlur = 8;
@@ -106,6 +95,35 @@ function draw() {
   ctx.fillText(leftScore,  W / 4,     50);
   ctx.fillText(rightScore, 3 * W / 4, 50);
 }
+
+
+class GameMode {
+  normal() {
+    
+  }
+
+
+  noWallsMode() {
+     // Ghost ball — faint preview at the opposite edge when ball is near a wall
+  
+    if (ballY < 40 || ballY > H - 40 - BALL_SIZE) {
+      const ghostY = ballY < 40 ? ballY + H : ballY - H;
+      ctx.globalAlpha = 0.3;
+      ctx.fillStyle = 'rgb(255, 255, 255)';
+      ctx.fillRect(ballX, ghostY, BALL_SIZE, BALL_SIZE);
+      ctx.globalAlpha = 1;
+    }
+    
+      // Wrap through top/bottom walls instead of bouncing
+      if (ballY + BALL_SIZE < 0) ballY += H;
+      if (ballY > H)             ballY -= H;
+  }
+
+  rockPaperScissors() {
+
+  }
+}
+
 
 function loop() {
   update();
