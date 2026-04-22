@@ -32,11 +32,14 @@ class GameMode {
 
     rockPaperScissors() {
         moveBall();
+
         console.log("rockPaperScissors");
     }
 
     flappyBird() {
         moveBall();
+
+        
         console.log("flappyBird");
     }
 }
