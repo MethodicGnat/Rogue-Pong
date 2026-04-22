@@ -6,6 +6,7 @@ function moveBall() {
     else {trailPoints = [];}
 }
 
+
 class GameMode {
     normal() {
         moveBall();
@@ -32,7 +33,18 @@ class GameMode {
 
     rockPaperScissors() {
         moveBall();
+        // give both opponents the option of rock paper or scissors
+        const ABILITIES = {
+            ROCK: 0,
+            PAPER: 1,
+            SCISSOR: 2
+        }
+        /*
+        let leftSideChoice;
+        let rightSideChoice;
+        switch ()
         console.log("rockPaperScissors");
+        */
     }
 
     flappyBird() {

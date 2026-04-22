@@ -21,7 +21,7 @@ const SETTINGS = {
 
 let cfg = {
   //ballSpeed:  'normal',
-  paddleSize: 'normal',
+  //paddleSize: 'normal',
   winScore:   '10',
   trail:      'on'
 };
@@ -195,7 +195,7 @@ document.addEventListener('keydown', e => {
     return;
   }
 });
-document.addEventListener('keyup', e => { keys[e.key] = false; });
+document.addEventListener('keyup', e => { keys[e.key.toLowerCase()] = false; });
 
 // ── Game Functions ────────────────────────────────────────
 function startGame(withBot) {
@@ -247,8 +247,8 @@ function update() {
 
   // Player always controls left paddle with W/S
   //bug with controls when player presses shift
-  if (keys['w'] || keys['W']) leftY = Math.max(0, leftY - PAD_SPEED);
-  if (keys['s'] || keys['S']) leftY = Math.min(H - PAD_H, leftY + PAD_SPEED);
+  if (keys['w']) leftY = Math.max(0, leftY - PAD_SPEED);
+  if (keys['s']) leftY = Math.min(H - PAD_H, leftY + PAD_SPEED);
 
   if (botActive) {
     updateBot();
