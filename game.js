@@ -2,16 +2,25 @@ const canvas = document.getElementById('c');
 const ctx = canvas.getContext('2d');
 const W = canvas.width, H = canvas.height;
 
+// pong variations
+const gameModeSelector = new GameMode();
+const MODES = {
+  NORMAL: gameModeSelector.normal, // typical ping pong
+  NO_WALLS: gameModeSelector.noWallsMode, // ball moves through vertical boundaries
+  ROCK_PAPER_SCISSORS: gameModeSelector.rockPaperScissors,
+  FLAPPY_BIRD: gameModeSelector.flappyBird // paddles move like in flappy bird
+}
+
 // ── Settings ─────────────────────────────────────────────
 const SETTINGS = {
-  ballSpeed:  { slow: 3,  normal: 4,  fast: 6  },
-  paddleSize: { small: 50, normal: 80, large: 110 },
+  //ballSpeed:  { slow: 3,  normal: 4,  fast: 6  },
+  //paddleSize: { small: 75, normal: 90, large: 105 },
   winScore:   { '5': 5, '10': 10, '20': 20, '0': 0 },
   trail:      { on: true, off: false }
 };
 
 let cfg = {
-  ballSpeed:  'normal',
+  //ballSpeed:  'normal',
   paddleSize: 'normal',
   winScore:   '10',
   trail:      'on'
@@ -29,13 +38,15 @@ const BOT_PROFILES = {
 };
 
 // ── State ─────────────────────────────────────────────────
-const PAD_W = 10, BALL_SIZE = 10, PAD_SPEED = 5;
+const PAD_W = 20, PAD_H = 120, BALL_SIZE = 15, PAD_SPEED = 10;
 
+let ballSpeed = 5;
 let leftY, rightY, ballX, ballY, ballDX, ballDY;
 let leftScore = 0, rightScore = 0;
 let gameState = 'menu'; // 'menu' | 'playing' | 'paused' | 'won'
 let trailPoints = [];
 const keys = {};
+let currentGameMode = MODES.NO_WALLS;
 
 // ── Bot state ─────────────────────────────────────────────
 let botActive = false;
@@ -72,7 +83,7 @@ function openSettings(from) {
 // ── Bot AI update ─────────────────────────────────────────
 function updateBot() {
   const profile = BOT_PROFILES[botDifficulty];
-  const padH    = getPadH();
+  //const padH    = getPadH();
 
   botTickCount++;
   // Recalculate target position periodically
@@ -82,20 +93,20 @@ function updateBot() {
       const predicted = predictBallY();
       // Add a deliberate error to make it beatable
       const err = (Math.random() - 0.5) * 2 * profile.error;
-      botTargetY = predicted + err - padH / 2;
+      botTargetY = predicted + err - PAD_H / 2;
     } else {
       // Ball moving away — drift back toward centre
-      botTargetY = H / 2 - padH / 2;
+      botTargetY = H / 2 - PAD_H / 2;
     }
-    botTargetY = Math.max(0, Math.min(H - padH, botTargetY));
+    botTargetY = Math.max(0, Math.min(H - PAD_H, botTargetY));
   }
 
   // Move paddle toward target
-  const centre = rightY + padH / 2;
-  const target = botTargetY + padH / 2;
+  const centre = rightY + PAD_H / 2;
+  const target = botTargetY + PAD_H / 2;
   const diff   = target - centre;
   const move   = Math.min(Math.abs(diff), profile.speed) * Math.sign(diff);
-  rightY = Math.max(0, Math.min(H - padH, rightY + move));
+  rightY = Math.max(0, Math.min(H - PAD_H, rightY + move));
 }
 
 // Simulate ball bounces to predict where it'll reach the right wall
@@ -190,9 +201,9 @@ document.addEventListener('keyup', e => { keys[e.key] = false; });
 function startGame(withBot) {
   botActive = withBot;
   botTickCount = 0;
-  const padH = getPadH();
-  leftY  = H / 2 - padH / 2;
-  rightY = H / 2 - padH / 2;
+  //const padH = getPadH();
+  leftY  = H / 2 - PAD_H / 2;
+  rightY = H / 2 - PAD_H / 2;
   botTargetY = rightY;
   leftScore = 0;
   rightScore = 0;
@@ -204,13 +215,13 @@ function startGame(withBot) {
 
 function resetBall(dir) {
   ballX = W / 2; ballY = H / 2;
-  const spd = SETTINGS.ballSpeed[cfg.ballSpeed];
-  ballDX = spd * dir;
-  ballDY = (spd * 0.75) * (Math.random() < 0.5 ? 1 : -1);
+  //const spd = SETTINGS.ballSpeed[cfg.ballSpeed];
+  ballDX = ballSpeed * dir;
+  ballDY = (ballSpeed * 0.75) * (Math.random() < 0.5 ? 1 : -1);
   trailPoints = [];
 }
 
-function getPadH() { return SETTINGS.paddleSize[cfg.paddleSize]; }
+//function getPadH() { return SETTINGS.paddleSize[cfg.paddleSize]; }
 function getWin()  { return SETTINGS.winScore[cfg.winScore]; }
 
 function checkWin() {
@@ -232,47 +243,37 @@ function checkWin() {
 function update() {
   if (gameState !== 'playing') return;
 
-  const padH = getPadH();
+  //const padH = getPadH();
 
   // Player always controls left paddle with W/S
+  //bug with controls when player presses shift
   if (keys['w'] || keys['W']) leftY = Math.max(0, leftY - PAD_SPEED);
-  if (keys['s'] || keys['S']) leftY = Math.min(H - padH, leftY + PAD_SPEED);
+  if (keys['s'] || keys['S']) leftY = Math.min(H - PAD_H, leftY + PAD_SPEED);
 
   if (botActive) {
     updateBot();
   } else {
     // Local 2-player: right paddle uses arrow keys
     if (keys['ArrowUp'])   rightY = Math.max(0, rightY - PAD_SPEED);
-    if (keys['ArrowDown']) rightY = Math.min(H - padH, rightY + PAD_SPEED);
+    if (keys['ArrowDown']) rightY = Math.min(H - PAD_H, rightY + PAD_SPEED);
   }
 
   // ── Ball physics ─────────────────────────────────────────
-  ballX += ballDX;
-  ballY += ballDY;
-
-  if (SETTINGS.trail[cfg.trail]) {
-    trailPoints.push({ x: ballX, y: ballY });
-    if (trailPoints.length > 12) trailPoints.shift();
-  } else {
-    trailPoints = [];
-  }
-
-  if (ballY <= 0)               { ballY = 0;             ballDY *= -1; }
-  if (ballY + BALL_SIZE >= H)   { ballY = H - BALL_SIZE; ballDY *= -1; }
-
+  currentGameMode();
+  
   // Left paddle
-  if (ballX <= 20 + PAD_W && ballY + BALL_SIZE >= leftY && ballY <= leftY + padH && ballDX < 0) {
+  if (ballX <= 20 + PAD_W && ballY + BALL_SIZE >= leftY && ballY <= leftY + PAD_H && ballDX < 0) {
     ballDX *= -1;
     ballX = 20 + PAD_W;
-    const rel = (ballY + BALL_SIZE / 2 - leftY) / padH;
+    const rel = (ballY + BALL_SIZE / 2 - leftY) / PAD_H;
     ballDY = (rel - 0.5) * 2 * Math.abs(ballDX) * 1.2;
   }
 
   // Right paddle
-  if (ballX + BALL_SIZE >= W - 20 - PAD_W && ballY + BALL_SIZE >= rightY && ballY <= rightY + padH && ballDX > 0) {
+  if (ballX + BALL_SIZE >= W - 20 - PAD_W && ballY + BALL_SIZE >= rightY && ballY <= rightY + PAD_H && ballDX > 0) {
     ballDX *= -1;
     ballX = W - 20 - PAD_W - BALL_SIZE;
-    const rel = (ballY + BALL_SIZE / 2 - rightY) / padH;
+    const rel = (ballY + BALL_SIZE / 2 - rightY) / PAD_H;
     ballDY = (rel - 0.5) * 2 * Math.abs(ballDX) * 1.2;
   }
 
@@ -282,7 +283,7 @@ function update() {
 
 // ── Draw ──────────────────────────────────────────────────
 function draw() {
-  const padH = getPadH();
+  //const padH = getPadH();
 
   ctx.fillStyle = '#000';
   ctx.fillRect(0, 0, W, H);
@@ -303,8 +304,8 @@ function draw() {
 
   // Paddles
   ctx.fillStyle = '#fff';
-  ctx.fillRect(20, leftY, PAD_W, padH);
-  ctx.fillRect(W - 20 - PAD_W, rightY, PAD_W, padH);
+  ctx.fillRect(20, leftY, PAD_W, PAD_H);
+  ctx.fillRect(W - 20 - PAD_W, rightY, PAD_W, PAD_H);
 
   // Ball
   ctx.fillStyle = '#fff';
