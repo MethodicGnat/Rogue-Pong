@@ -14,7 +14,7 @@ let ballX = W / 2, ballY = H / 2;
 let ballDX = 4 * (Math.random() < 0.5 ? 1 : -1);
 let ballDY = 3 * (Math.random() < 0.5 ? 1 : -1);
 let leftScore = 0, rightScore = 0;
-let current
+let currentGameMode = new GameMode();
 
 const keys = {};
 document.addEventListener('keydown', e => { keys[e.key] = true; e.preventDefault(); });
@@ -48,6 +48,17 @@ function update() {
   // Ball movement
   ballX += ballDX;
   ballY += ballDY;
+
+  // Trail
+  if (SETTINGS.trail[cfg.trail]) {
+    trailPoints.push({ x: ballX, y: ballY });
+    if (trailPoints.length > 12) trailPoints.shift();
+  } else {
+    trailPoints = [];
+  }
+
+  //choose gamemode
+  currentGameMode.normal();
 
   // Left paddle collision
   if (ballX <= 20 + PAD_W && ballDX < 0 && paddleHit(leftY)) {
@@ -95,35 +106,6 @@ function draw() {
   ctx.fillText(leftScore,  W / 4,     50);
   ctx.fillText(rightScore, 3 * W / 4, 50);
 }
-
-
-class GameMode {
-  normal() {
-    
-  }
-
-
-  noWallsMode() {
-     // Ghost ball — faint preview at the opposite edge when ball is near a wall
-  
-    if (ballY < 40 || ballY > H - 40 - BALL_SIZE) {
-      const ghostY = ballY < 40 ? ballY + H : ballY - H;
-      ctx.globalAlpha = 0.3;
-      ctx.fillStyle = 'rgb(255, 255, 255)';
-      ctx.fillRect(ballX, ghostY, BALL_SIZE, BALL_SIZE);
-      ctx.globalAlpha = 1;
-    }
-    
-      // Wrap through top/bottom walls instead of bouncing
-      if (ballY + BALL_SIZE < 0) ballY += H;
-      if (ballY > H)             ballY -= H;
-  }
-
-  rockPaperScissors() {
-
-  }
-}
-
 
 function loop() {
   update();
