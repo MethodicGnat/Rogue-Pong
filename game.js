@@ -172,19 +172,21 @@ document.querySelectorAll('.opt-btn').forEach(btn => {
 
 // ── Keyboard ──────────────────────────────────────────────
 document.addEventListener('keydown', e => {
-  keys[e.key] = true;
-  if ((e.key === 'p' || e.key === 'P' || e.key === 'Escape') && gameState === 'playing') {
+  let key = e.key.toLowerCase();
+  keys[key] = true;
+
+  if ((key === 'p' || key === 'escape') && gameState === 'playing') {
     gameState = 'paused';
     showMenu(pauseMenu);
     return;
   }
-  if ((e.key === 'p' || e.key === 'P' || e.key === 'Escape') && gameState === 'paused') {
+  if ((key === 'p' || key === 'escape') && gameState === 'paused') {
     gameState = 'playing';
     hideOverlay();
     return;
   }
 });
-document.addEventListener('keyup', e => { keys[e.key] = false; });
+document.addEventListener('keyup', e => { keys[e.key.toLowerCase()] = false; });
 
 // ── Game Functions ────────────────────────────────────────
 function startGame(withBot) {
