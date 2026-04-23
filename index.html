@@ -7,7 +7,7 @@
 </head>
 <body>
   <canvas id="c" width="800" height="500"></canvas>
-  <p id="controls-hint">W/S — Move &nbsp;|&nbsp; <kbd>E</kbd>/<kbd>/</kbd> — Shop &nbsp;|&nbsp; <kbd>Q</kbd>/<kbd>.</kbd> — Use Item &nbsp;|&nbsp; <kbd>P</kbd> or <kbd>Esc</kbd> — Pause</p>
+  <p id="controls-hint">W/S — Move &nbsp;|&nbsp; <kbd>P</kbd> or <kbd>Esc</kbd> — Pause</p>
 
   <div id="overlay" class="overlay active">
 
@@ -75,6 +75,43 @@
           <button class="opt-btn" data-setting="trail" data-value="off">Off</button>
         </div>
       </div>
+      <div class="setting-row">
+        <label>Player 1 Up</label>
+        <div class="btn-group">
+          <input class="keybind-input" data-binding="p1Up" readonly value="W">
+        </div>
+      </div>
+      <div class="setting-row">
+        <label>Player 1 Down</label>
+        <div class="btn-group">
+          <input class="keybind-input" data-binding="p1Down" readonly value="S">
+        </div>
+      </div>
+      <div class="setting-row">
+        <label>Player 2 Up</label>
+        <div class="btn-group">
+          <input class="keybind-input" data-binding="p2Up" readonly value="↑">
+        </div>
+      </div>
+      <div class="setting-row">
+        <label>Player 2 Down</label>
+        <div class="btn-group">
+          <input class="keybind-input" data-binding="p2Down" readonly value="↓">
+        </div>
+      </div>
+      <div class="setting-row">
+        <label>Player 1 Shop</label>
+        <div class="btn-group">
+          <input class="keybind-input" data-binding="p1Shop" readonly value="Shift">
+        </div>
+      </div>
+      <div class="setting-row">
+        <label>Player 2 Shop</label>
+        <div class="btn-group">
+          <input class="keybind-input" data-binding="p2Shop" readonly value="Ctrl">
+        </div>
+      </div>
+
       <div class="menu-divider"></div>
       <button class="menu-btn primary" id="btn-settings-back">← Back</button>
     </div>
