@@ -21,7 +21,7 @@ let cfg = {
 const BOT_PROFILES = {
   easy:       { speed: 2.2, reaction: 150, error: 55, freq: 12 },
   hard:       { speed: 3,   reaction: 230, error: 35, freq:  6 },
-  impossible: { speed: 5.2, reaction: W,   error:  6, freq:  2 }
+  impossible: { speed: 5.2, reaction: 230,   error:  6, freq:  2 }
 };
 
 // ── State ─────────────────────────────────────────────────
