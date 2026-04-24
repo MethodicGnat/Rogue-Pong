@@ -69,6 +69,9 @@ let gameState = 'menu'; // 'menu' | 'playing' | 'paused' | 'won'
 let trailPoints = [];
 const keys = {};
 
+// ── Game Mode instance (defined in mode_class.js) ─────────
+const gameMode = new GameMode();
+
 let playTimeFrames = 0;
 let showerReminderActive = false;
 let showerReminderFramesLeft = 0;
@@ -449,6 +452,7 @@ function startGame(withBot) {
   resetBall(Math.random() < 0.5 ? 1 : -1);
   gameState = 'playing';
   playTimeFrames = 0;
+  resetModeState();
   showerReminderActive = false;
   showerReminderFramesLeft = 0;
   showerReminderTriggered = false;
@@ -503,30 +507,31 @@ function update(frameScale) {
   const leftPadH  = getLeftPadH();
   const rightPadH = getRightPadH();
 
-  // Left player
-  if (keys[keybinds.p1Up]   || keys[keybinds.p1Up.toLowerCase()]   || keys[keybinds.p1Up.toUpperCase()])   leftY = Math.max(0, leftY - PAD_SPEED);
-  if (keys[keybinds.p1Down] || keys[keybinds.p1Down.toLowerCase()] || keys[keybinds.p1Down.toUpperCase()]) leftY = Math.min(H - leftPadH, leftY + PAD_SPEED);
+  // Left player movement (suppressed in flappy bird — gravity controls paddles)
+  const mode = getCurrentMode();
+  if (mode !== 'flappyBird') {
+    if (keys[keybinds.p1Up]   || keys[keybinds.p1Up.toLowerCase()]   || keys[keybinds.p1Up.toUpperCase()])   leftY = Math.max(0, leftY - PAD_SPEED * frameScale);
+    if (keys[keybinds.p1Down] || keys[keybinds.p1Down.toLowerCase()] || keys[keybinds.p1Down.toUpperCase()]) leftY = Math.min(H - leftPadH, leftY + PAD_SPEED * frameScale);
 
-  if (botActive) {
-    updateBot(frameScale);
-  } else {
-    if (keys[keybinds.p2Up]   || keys[keybinds.p2Up.toLowerCase()]   || keys[keybinds.p2Up.toUpperCase()])   rightY = Math.max(0, rightY - PAD_SPEED);
-    if (keys[keybinds.p2Down] || keys[keybinds.p2Down.toLowerCase()] || keys[keybinds.p2Down.toUpperCase()]) rightY = Math.min(H - rightPadH, rightY + PAD_SPEED);
+    if (botActive) {
+      updateBot(frameScale);
+    } else {
+      if (keys[keybinds.p2Up]   || keys[keybinds.p2Up.toLowerCase()]   || keys[keybinds.p2Up.toUpperCase()])   rightY = Math.max(0, rightY - PAD_SPEED * frameScale);
+      if (keys[keybinds.p2Down] || keys[keybinds.p2Down.toLowerCase()] || keys[keybinds.p2Down.toUpperCase()]) rightY = Math.min(H - rightPadH, rightY + PAD_SPEED * frameScale);
+    }
   }
 
-  // ── Ball physics ─────────────────────────────────────────
-  ballX += ballDX * frameScale;
-  ballY += ballDY * frameScale;
-
-  if (SETTINGS.trail[cfg.trail]) {
-    trailPoints.push({ x: ballX, y: ballY });
-    if (trailPoints.length > 12) trailPoints.shift();
+  // ── Ball physics — delegated to current GameMode ────────
+  // (GameMode methods call moveBall() and handle wall bounces)
+  if (mode === 'flappyBird') {
+    gameMode.flappyBird(frameScale);
+  } else if (mode === 'noWallsMode') {
+    gameMode.noWallsMode(frameScale);
+  } else if (mode === 'rockPaperScissors') {
+    gameMode.rockPaperScissors(frameScale);
   } else {
-    trailPoints = [];
+    gameMode.normal(frameScale);
   }
-
-  if (ballY <= 0)               { ballY = 0;             ballDY *= -1; }
-  if (ballY + BALL_SIZE >= H)   { ballY = H - BALL_SIZE; ballDY *= -1; }
 
   // Left paddle collision
   if (ballX <= 20 + PAD_W && ballY + BALL_SIZE >= leftY && ballY <= leftY + leftPadH && ballDX < 0) {
@@ -542,7 +547,7 @@ function update(frameScale) {
         curvePending.left = false;
       }
       ghostBall = false;
-      // restore speed if slowball just wore off inline — handled by tickEffects
+      onPaddleHit();
     }
   }
 
@@ -560,6 +565,7 @@ function update(frameScale) {
         curvePending.right = false;
       }
       ghostBall = false;
+      onPaddleHit();
     }
   }
 
@@ -639,6 +645,10 @@ function draw() {
 
   // Active effect timers
   drawEffectBars();
+
+  // Mode-specific overlays, pipes, banners
+  drawModeExtras();
+
 
   if (gameState === 'paused') {
     ctx.fillStyle = 'rgba(0,0,0,0.4)';
