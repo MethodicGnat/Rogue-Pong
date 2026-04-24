@@ -17,6 +17,33 @@ let cfg = {
   trail:      'on'
 };
 
+// ── Keybinds ──────────────────────────────────────────────
+const keybinds = {
+  p1Up:      'w',
+  p1Down:    's',
+  p2Up:      'ArrowUp',
+  p2Down:    'ArrowDown',
+  p1Shop:    'e',
+  p1Powerup: 'q',
+  p2Shop:    '/',
+  p2Powerup: '.'
+};
+
+// Sync keybind inputs → keybinds object (called once DOM is ready)
+function initKeybindInputs() {
+  document.querySelectorAll('.keybind-input').forEach(input => {
+    const binding = input.dataset.binding;
+    input.value = keybinds[binding];
+    input.addEventListener('keydown', e => {
+      e.preventDefault();
+      const key = e.key === ' ' ? 'Space' : e.key;
+      keybinds[binding] = key;
+      input.value = key;
+    });
+  });
+}
+initKeybindInputs();
+
 // ── Bot difficulty profiles ───────────────────────────────
 const BOT_PROFILES = {
   easy:       { speed: 2.2, reaction: 150, error: 55, freq: 12 },
@@ -326,6 +353,11 @@ document.querySelectorAll('.opt-btn').forEach(btn => {
   });
 });
 
+// Case-insensitive key match
+function matchKey(pressed, bound) {
+  return pressed === bound || pressed.toLowerCase() === bound.toLowerCase();
+}
+
 // ── Keyboard ──────────────────────────────────────────────
 document.addEventListener('keydown', e => {
   keys[e.key] = true;
@@ -348,22 +380,22 @@ document.addEventListener('keydown', e => {
     return;
   }
 
-  // Open shops (E = left, / = right)
-  if ((e.key === 'e' || e.key === 'E') && gameState === 'playing') {
+  // Open shops
+  if (matchKey(e.key, keybinds.p1Shop) && gameState === 'playing') {
     openShop('left');
     return;
   }
-  if (e.key === '/' && gameState === 'playing') {
+  if (matchKey(e.key, keybinds.p2Shop) && gameState === 'playing') {
     openShop('right');
     return;
   }
 
-  // Activate items (Q = left, . = right)
-  if ((e.key === 'q' || e.key === 'Q') && gameState === 'playing') {
+  // Activate items
+  if (matchKey(e.key, keybinds.p1Powerup) && gameState === 'playing') {
     activateItem('left');
     return;
   }
-  if (e.key === '.' && gameState === 'playing') {
+  if (matchKey(e.key, keybinds.p2Powerup) && gameState === 'playing') {
     activateItem('right');
     return;
   }
@@ -434,15 +466,15 @@ function update() {
   const leftPadH  = getLeftPadH();
   const rightPadH = getRightPadH();
 
-  // Left player (W/S)
-  if (keys['w'] || keys['W']) leftY = Math.max(0, leftY - PAD_SPEED);
-  if (keys['s'] || keys['S']) leftY = Math.min(H - leftPadH, leftY + PAD_SPEED);
+  // Left player
+  if (keys[keybinds.p1Up]   || keys[keybinds.p1Up.toLowerCase()]   || keys[keybinds.p1Up.toUpperCase()])   leftY = Math.max(0, leftY - PAD_SPEED);
+  if (keys[keybinds.p1Down] || keys[keybinds.p1Down.toLowerCase()] || keys[keybinds.p1Down.toUpperCase()]) leftY = Math.min(H - leftPadH, leftY + PAD_SPEED);
 
   if (botActive) {
     updateBot();
   } else {
-    if (keys['ArrowUp'])   rightY = Math.max(0, rightY - PAD_SPEED);
-    if (keys['ArrowDown']) rightY = Math.min(H - rightPadH, rightY + PAD_SPEED);
+    if (keys[keybinds.p2Up]   || keys[keybinds.p2Up.toLowerCase()]   || keys[keybinds.p2Up.toUpperCase()])   rightY = Math.max(0, rightY - PAD_SPEED);
+    if (keys[keybinds.p2Down] || keys[keybinds.p2Down.toLowerCase()] || keys[keybinds.p2Down.toUpperCase()]) rightY = Math.min(H - rightPadH, rightY + PAD_SPEED);
   }
 
   // ── Ball physics ─────────────────────────────────────────
@@ -593,10 +625,10 @@ function drawHUD() {
   if (leftItem) {
     const pu = POWERUPS.find(p => p.key === leftItem);
     ctx.fillStyle = pu.color;
-    ctx.fillText(`[Q] ${pu.label}`, 22, 93);
+    ctx.fillText(`[${keybinds.p1Powerup.toUpperCase()}] ${pu.label}`, 22, 93);
   } else {
     ctx.fillStyle = '#2a2a2a';
-    ctx.fillText('[E] Shop', 22, 93);
+    ctx.fillText(`[${keybinds.p1Shop.toUpperCase()}] Shop`, 22, 93);
   }
 
   // Right player HUD (skip shop hint for bot)
@@ -607,10 +639,10 @@ function drawHUD() {
   if (rightItem) {
     const pu = POWERUPS.find(p => p.key === rightItem);
     ctx.fillStyle = pu.color;
-    ctx.fillText(`[.] ${pu.label}`, W - 22, 93);
+    ctx.fillText(`[${keybinds.p2Powerup}] ${pu.label}`, W - 22, 93);
   } else if (!botActive) {
     ctx.fillStyle = '#2a2a2a';
-    ctx.fillText('[/] Shop', W - 22, 93);
+    ctx.fillText(`[${keybinds.p2Shop}] Shop`, W - 22, 93);
   }
 }
 
@@ -658,7 +690,7 @@ function drawShop() {
   const side = shopOpen;
   const coins = side === 'left' ? leftCoins : rightCoins;
   const held  = side === 'left' ? leftItem  : rightItem;
-  const activateKey = side === 'left' ? 'Q' : '.';
+  const activateKey = side === 'left' ? keybinds.p1Powerup.toUpperCase() : keybinds.p2Powerup;
   const label = side === 'left' ? 'YOUR SHOP' : (botActive ? '' : 'P2 SHOP');
 
   const boxW = 290, boxH = 310;
