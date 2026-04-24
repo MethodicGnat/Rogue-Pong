@@ -345,42 +345,43 @@ document.querySelectorAll('.opt-btn').forEach(btn => {
 
 // ── Keyboard ──────────────────────────────────────────────
 document.addEventListener('keydown', e => {
-  keys[e.key] = true;
+  let key = e.key.toLowerCase();
+  keys[key] = true;
 
   // Pause / unpause
-  if ((e.key === 'p' || e.key === 'P' || e.key === 'Escape') && gameState === 'playing') {
+  if ((key === 'p' || key === 'escape') && gameState === 'playing') {
     gameState = 'paused';
     showMenu(pauseMenu);
     return;
   }
-  if ((e.key === 'p' || e.key === 'P' || e.key === 'Escape') && gameState === 'paused') {
+  if ((key === 'p' || key === 'escape') && gameState === 'paused') {
     gameState = 'playing';
     hideOverlay();
     return;
   }
 
   // Close shop with Escape
-  if (e.key === 'Escape' && gameState === 'shop') {
+  if (key === 'escape' && gameState === 'shop') {
     closeShop();
     return;
   }
 
   // Open shops (E = left, / = right)
-  if ((e.key === 'e' || e.key === 'E') && gameState === 'playing') {
+  if (key === 'e' && gameState === 'playing') {
     openShop('left');
     return;
   }
-  if (e.key === '/' && gameState === 'playing') {
+  if ((key === '/' || key === "?") && gameState === 'playing') {
     openShop('right');
     return;
   }
 
   // Activate items (Q = left, . = right)
-  if ((e.key === 'q' || e.key === 'Q') && gameState === 'playing') {
+  if (key === 'q' && gameState === 'playing') {
     activateItem('left');
     return;
   }
-  if (e.key === '.' && gameState === 'playing') {
+  if ((key === '.' || key === "?") && gameState === 'playing') {
     activateItem('right');
     return;
   }
@@ -394,7 +395,7 @@ document.addEventListener('keydown', e => {
     return;
   }
 });
-document.addEventListener('keyup', e => { keys[e.key] = false; });
+document.addEventListener('keyup', e => { keys[e.key.toLowerCase()] = false; });
 
 // ── Game Functions ────────────────────────────────────────
 function startGame(withBot) {
