@@ -43,6 +43,7 @@
     <div class="menu-box hidden" id="settings-menu">
       <div class="menu-title small">SETTINGS</div>
       <div class="menu-divider"></div>
+      <fieldset class="settings-box">
       <div class="setting-row">
         <label>Ball Speed</label>
         <div class="btn-group">
@@ -132,6 +133,42 @@
           <input class="keybind-input" data-binding="p2Powerup" value="." maxlength="1">
         </div>
       </div>
+
+      <div class="audio-controls">
+        <div class="audio-player">
+          <div class="audio-track-row">
+            <span class="audio-label">NOW PLAYING</span>
+            <span id="music-track-label" class="audio-track-name">Track 1</span>
+          </div>
+          <div class="audio-transport">
+            <button class="transport-btn" id="btn-music-prev">&#9664;&#9664;</button>
+            <button class="transport-btn primary" id="btn-music-play">&#9654;</button>
+            <button class="transport-btn" id="btn-music-next">&#9654;&#9654;</button>
+          </div>
+        </div>
+        <div class="setting-row">
+          <label>Master Vol</label>
+          <div class="slider-row">
+            <input type="range" id="master-volume" min="0" max="1" step="0.01" value="1">
+            <span class="vol-label" id="master-volume-label">100%</span>
+          </div>
+        </div>
+        <div class="setting-row">
+          <label>Music Vol</label>
+          <div class="slider-row">
+            <input type="range" id="music-volume" min="0" max="1" step="0.01" value="0.5">
+            <span class="vol-label" id="music-volume-label">50%</span>
+          </div>
+        </div>
+        <div class="setting-row">
+          <label>SFX Vol</label>
+          <div class="slider-row">
+            <input type="range" id="sfx-volume" min="0" max="1" step="0.01" value="0.5">
+            <span class="vol-label" id="sfx-volume-label">50%</span>
+          </div>
+        </div>
+      </div>
+      </fieldset> 
       <div class="menu-divider"></div>
       <button class="menu-btn primary" id="btn-settings-back">← Back</button>
     </div>

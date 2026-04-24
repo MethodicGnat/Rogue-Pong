@@ -44,7 +44,152 @@ function initKeybindInputs() {
     });
   });
 }
-initKeybindInputs();
+
+
+// ── Audio System ─────────────────────────────────────────
+// Volume state (all 0–1, master is a multiplier)
+const audioVol = { master: 1, music: 0.5, sfx: 0.5 };
+// ── Music tracks ─────────────────────────────────────────
+// Add new tracks here: { file: 'music/trackN.mp3', label: 'Track N' }
+const MUSIC_TRACKS = [
+  { file: 'music/track1.mp3', label: 'Track 1' },
+  { file: 'music/track2.mp3', label: 'Track 2' },
+  { file: 'music/track3.mp3', label: 'Track 3' },
+];
+
+let musicIndex    = 0;   // which track is loaded/playing
+let musicPaused   = false;
+const musicAudio  = new Audio();
+musicAudio.loop   = false;
+
+function loadTrack(idx) {
+  musicIndex = ((idx % MUSIC_TRACKS.length) + MUSIC_TRACKS.length) % MUSIC_TRACKS.length;
+  musicAudio.src = MUSIC_TRACKS[musicIndex].file;
+  applyMusicVolume();
+}
+
+function applyMusicVolume() {
+  musicAudio.volume = Math.min(1, audioVol.master * audioVol.music);
+}
+
+function playMusic() {
+  if (!musicAudio.src) loadTrack(0);
+  musicPaused = false;
+  musicAudio.play().catch(() => {});
+  updateMusicUI();
+}
+
+function pauseMusic() {
+  musicPaused = true;
+  musicAudio.pause();
+  updateMusicUI();
+}
+
+function toggleMusic() {
+  musicPaused ? playMusic() : pauseMusic();
+}
+
+function nextTrack() {
+  const wasPlaying = !musicPaused && !musicAudio.paused;
+  loadTrack(musicIndex + 1);
+  if (wasPlaying) musicAudio.play().catch(() => {});
+  updateMusicUI();
+}
+
+function prevTrack() {
+  const wasPlaying = !musicPaused && !musicAudio.paused;
+  loadTrack(musicIndex - 1);
+  if (wasPlaying) musicAudio.play().catch(() => {});
+  updateMusicUI();
+}
+
+// Auto-advance to next track when one ends
+musicAudio.addEventListener('ended', () => {
+  loadTrack(musicIndex + 1);
+  if (!musicPaused) musicAudio.play().catch(() => {});
+  updateMusicUI();
+});
+
+function updateMusicUI() {
+  const trackLabel = document.getElementById('music-track-label');
+  const playBtn    = document.getElementById('btn-music-play');
+  if (trackLabel) trackLabel.textContent = MUSIC_TRACKS[musicIndex].label;
+  if (playBtn)    playBtn.textContent    = (!musicPaused && !musicAudio.paused) ? '⏸' : '▶';
+}
+
+// ── SFX System ────────────────────────────────────────────
+// To add a new SFX: add an entry to SFX_FILES and call playSfx('key') anywhere.
+// Example: playSfx('paddle_hit'), playSfx('score'), playSfx('powerup')
+const SFX_FILES = {
+  // paddle_hit: 'sfx/paddle_hit.mp3',
+  // score:      'sfx/score.mp3',
+  // powerup:    'sfx/powerup.mp3',
+  // wall_hit:   'sfx/wall_hit.mp3',
+};
+
+const sfxCache = {};
+
+function playSfx(key) {
+  const file = SFX_FILES[key];
+  if (!file) return;
+  // Reuse cached Audio object but clone it so overlapping hits are allowed
+  if (!sfxCache[key]) sfxCache[key] = new Audio(file);
+  const snd = sfxCache[key].cloneNode();
+  snd.volume = Math.min(1, audioVol.master * audioVol.sfx);
+  snd.play().catch(() => {});
+}
+
+// ── Wire up Settings audio controls ──────────────────────
+function initAudioControls() {
+  // Volume sliders
+  const masterSlider = document.getElementById('master-volume');
+  const musicSlider  = document.getElementById('music-volume');
+  const sfxSlider    = document.getElementById('sfx-volume');
+
+  function syncSliderLabel(sliderId, val) {
+    const lbl = document.getElementById(sliderId + '-label');
+    if (lbl) lbl.textContent = Math.round(val * 100) + '%';
+  }
+
+  if (masterSlider) {
+    masterSlider.value = audioVol.master;
+    syncSliderLabel('master-volume', audioVol.master);
+    masterSlider.addEventListener('input', () => {
+      audioVol.master = parseFloat(masterSlider.value);
+      syncSliderLabel('master-volume', audioVol.master);
+      applyMusicVolume();
+    });
+  }
+  if (musicSlider) {
+    musicSlider.value = audioVol.music;
+    syncSliderLabel('music-volume', audioVol.music);
+    musicSlider.addEventListener('input', () => {
+      audioVol.music = parseFloat(musicSlider.value);
+      syncSliderLabel('music-volume', audioVol.music);
+      applyMusicVolume();
+    });
+  }
+  if (sfxSlider) {
+    sfxSlider.value = audioVol.sfx;
+    syncSliderLabel('sfx-volume', audioVol.sfx);
+    sfxSlider.addEventListener('input', () => {
+      audioVol.sfx = parseFloat(sfxSlider.value);
+      syncSliderLabel('sfx-volume', audioVol.sfx);
+    });
+  }
+
+  // Transport buttons
+  document.getElementById('btn-music-prev') ?.addEventListener('click', prevTrack);
+  document.getElementById('btn-music-play') ?.addEventListener('click', () => {
+    // First interaction — start music if not yet loaded
+    if (!musicAudio.src) loadTrack(0);
+    toggleMusic();
+  });
+  document.getElementById('btn-music-next') ?.addEventListener('click', nextTrack);
+
+  loadTrack(0);
+  updateMusicUI();
+}
 
 // ── Bot difficulty profiles ───────────────────────────────
 const BOT_PROFILES = {
@@ -921,5 +1066,10 @@ function loop(timestamp = performance.now()) {
   requestAnimationFrame(loop);
 }
 
+
+
+
+initKeybindInputs();
+initAudioControls();
 showMenu(mainMenu);
 loop();
