@@ -149,6 +149,8 @@ canvas {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+
+  
 }
 
 .setting-row label {
@@ -159,7 +161,17 @@ canvas {
   min-width: 88px;
 }
 
-.btn-group { display: flex; gap: 4px; }
+.btn-group { 
+  display: flex; 
+  gap: 4px; 
+}
+
+.text-input {
+    background-color : #505050;
+    color: #0090ff;
+    border-style: none;
+}
+
 
 .opt-btn {
   padding: 5px 10px;
