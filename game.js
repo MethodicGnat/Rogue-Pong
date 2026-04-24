@@ -7,14 +7,16 @@ const SETTINGS = {
   ballSpeed:  { slow: 3,  normal: 4,  fast: 6  },
   paddleSize: { small: 50, normal: 80, large: 110 },
   winScore:   { '5': 5, '10': 10, '20': 20, '0': 0 },
-  trail:      { on: true, off: false }
+  trail:      { on: true, off: false },
+  frameRate:  { '30': 30, '60': 60, '120': 120, unlimited: 0 }
 };
 
 let cfg = {
   ballSpeed:  'normal',
   paddleSize: 'normal',
   winScore:   '10',
-  trail:      'on'
+  trail:      'on',
+  frameRate:  '60'
 };
 
 // ── Keybinds ──────────────────────────────────────────────
@@ -51,6 +53,13 @@ const BOT_PROFILES = {
   impossible: { speed: 5.2, reaction: 230,   error:  6, freq:  2 }
 };
 
+const SHOWER_REMINDER_THRESHOLD = 15 * 60 * 60; // 15 minutes at 60 FPS
+const SHOWER_REMINDER_DURATION   = 8 * 60;      // show for 8 seconds
+
+function getTargetFPS() {
+  return SETTINGS.frameRate[cfg.frameRate] ?? 60;
+}
+
 // ── State ─────────────────────────────────────────────────
 const PAD_W = 10, BALL_SIZE = 10, PAD_SPEED = 5;
 
@@ -59,6 +68,13 @@ let leftScore = 0, rightScore = 0;
 let gameState = 'menu'; // 'menu' | 'playing' | 'paused' | 'won'
 let trailPoints = [];
 const keys = {};
+
+let playTimeFrames = 0;
+let showerReminderActive = false;
+let showerReminderFramesLeft = 0;
+let showerReminderTriggered = false;
+let frameAccumulatorMs = 0;
+let lastLoopTime = null;
 
 // ── Bot state ─────────────────────────────────────────────
 let botActive = false;
@@ -149,9 +165,9 @@ function applyEffect(type) {
   }
 }
 
-function tickEffects() {
+function tickEffects(frameScale) {
   activeEffects = activeEffects.filter(e => {
-    e.framesLeft--;
+    e.framesLeft -= frameScale;
     return e.framesLeft > 0;
   });
 }
@@ -261,12 +277,13 @@ function openSettings(from) {
 }
 
 // ── Bot AI update ─────────────────────────────────────────
-function updateBot() {
+function updateBot(frameScale) {
   const profile = BOT_PROFILES[botDifficulty];
   const padH    = getRightPadH();
 
-  botTickCount++;
-  if (botTickCount % profile.freq === 0) {
+  botTickCount += frameScale;
+  while (botTickCount >= profile.freq) {
+    botTickCount -= profile.freq;
     if (ballDX > 0 && ballX > W - profile.reaction) {
       const predicted = predictBallY();
       const err = (Math.random() - 0.5) * 2 * profile.error;
@@ -360,22 +377,23 @@ function matchKey(pressed, bound) {
 
 // ── Keyboard ──────────────────────────────────────────────
 document.addEventListener('keydown', e => {
-  keys[e.key] = true;
+  let key = e.key.toLowerCase();
+  keys[key] = true;
 
   // Pause / unpause
-  if ((e.key === 'p' || e.key === 'P' || e.key === 'Escape') && gameState === 'playing') {
+  if ((key === 'p' || key === 'escape') && gameState === 'playing') {
     gameState = 'paused';
     showMenu(pauseMenu);
     return;
   }
-  if ((e.key === 'p' || e.key === 'P' || e.key === 'Escape') && gameState === 'paused') {
+  if ((key === 'p' || key === 'escape') && gameState === 'paused') {
     gameState = 'playing';
     hideOverlay();
     return;
   }
 
   // Close shop with Escape
-  if (e.key === 'Escape' && gameState === 'shop') {
+  if (key === 'escape' && gameState === 'shop') {
     closeShop();
     return;
   }
@@ -409,12 +427,14 @@ document.addEventListener('keydown', e => {
     return;
   }
 });
-document.addEventListener('keyup', e => { keys[e.key] = false; });
+document.addEventListener('keyup', e => { keys[e.key.toLowerCase()] = false; });
 
 // ── Game Functions ────────────────────────────────────────
 function startGame(withBot) {
   botActive  = withBot;
   botTickCount = 0;
+  frameAccumulatorMs = 0;
+  lastLoopTime = null;
   const padH = getPadH();
   leftY  = H / 2 - padH / 2;
   rightY = H / 2 - padH / 2;
@@ -428,6 +448,10 @@ function startGame(withBot) {
   trailPoints = [];
   resetBall(Math.random() < 0.5 ? 1 : -1);
   gameState = 'playing';
+  playTimeFrames = 0;
+  showerReminderActive = false;
+  showerReminderFramesLeft = 0;
+  showerReminderTriggered = false;
   hideOverlay();
 }
 
@@ -458,10 +482,23 @@ function checkWin() {
 }
 
 // ── Update ────────────────────────────────────────────────
-function update() {
+function update(frameScale) {
   if (gameState !== 'playing') return;
 
-  tickEffects();
+  playTimeFrames += frameScale;
+  if (!showerReminderTriggered && playTimeFrames >= SHOWER_REMINDER_THRESHOLD) {
+    showerReminderTriggered = true;
+    showerReminderActive = true;
+    showerReminderFramesLeft = SHOWER_REMINDER_DURATION;
+  }
+  if (showerReminderActive) {
+    showerReminderFramesLeft -= frameScale;
+    if (showerReminderFramesLeft <= 0) {
+      showerReminderActive = false;
+    }
+  }
+
+  tickEffects(frameScale);
 
   const leftPadH  = getLeftPadH();
   const rightPadH = getRightPadH();
@@ -471,15 +508,15 @@ function update() {
   if (keys[keybinds.p1Down] || keys[keybinds.p1Down.toLowerCase()] || keys[keybinds.p1Down.toUpperCase()]) leftY = Math.min(H - leftPadH, leftY + PAD_SPEED);
 
   if (botActive) {
-    updateBot();
+    updateBot(frameScale);
   } else {
     if (keys[keybinds.p2Up]   || keys[keybinds.p2Up.toLowerCase()]   || keys[keybinds.p2Up.toUpperCase()])   rightY = Math.max(0, rightY - PAD_SPEED);
     if (keys[keybinds.p2Down] || keys[keybinds.p2Down.toLowerCase()] || keys[keybinds.p2Down.toUpperCase()]) rightY = Math.min(H - rightPadH, rightY + PAD_SPEED);
   }
 
   // ── Ball physics ─────────────────────────────────────────
-  ballX += ballDX;
-  ballY += ballDY;
+  ballX += ballDX * frameScale;
+  ballY += ballDY * frameScale;
 
   if (SETTINGS.trail[cfg.trail]) {
     trailPoints.push({ x: ballX, y: ballY });
@@ -611,6 +648,10 @@ function draw() {
   // Shop overlay (drawn on top)
   if (gameState === 'shop') {
     drawShop();
+  }
+
+  if (showerReminderActive) {
+    drawShowerReminder();
   }
 }
 
@@ -810,10 +851,63 @@ function drawShop() {
   ctx.fillText('[ESC] Close', boxX + boxW / 2, boxY + boxH - 10);
 }
 
+function drawShowerReminder() {
+  const boxW = 340;
+  const boxH = 82;
+  const boxX = W / 2 - boxW / 2;
+  const boxY = 18;
+
+  ctx.fillStyle = 'rgba(0,0,0,0.88)';
+  ctx.fillRect(boxX, boxY, boxW, boxH);
+
+  ctx.strokeStyle = '#4af';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(boxX, boxY, boxW, boxH);
+
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#fff';
+  ctx.font = '700 14px Orbitron, monospace';
+  ctx.fillText('DDAAMN YOUVE BEEN PLAYING FOR A WHILE', W / 2, boxY + 26);
+
+  ctx.font = '12px Share Tech Mono, monospace';
+  ctx.fillStyle = '#7fd7ff';
+  ctx.fillText('Take a shower!', W / 2, boxY + 48);
+
+  ctx.fillStyle = '#888';
+  ctx.fillText('Back to the match when you are ready.', W / 2, boxY + 66);
+}
+
 // ── Loop ─────────────────────────────────────────────────
-function loop() {
-  update();
-  draw();
+function loop(timestamp = performance.now()) {
+  if (lastLoopTime === null) lastLoopTime = timestamp;
+
+  const targetFPS = getTargetFPS();
+  const baseFrameMs = 1000 / FPS;
+  const elapsed = Math.min(timestamp - lastLoopTime, 250);
+  lastLoopTime = timestamp;
+
+  let shouldDraw = gameState !== 'playing';
+
+  if (gameState === 'playing') {
+    if (targetFPS === 0) {
+      update(elapsed / baseFrameMs);
+      shouldDraw = true;
+    } else {
+      frameAccumulatorMs += elapsed;
+      const stepMs = 1000 / targetFPS;
+      const frameScale = stepMs / baseFrameMs;
+
+      while (frameAccumulatorMs >= stepMs) {
+        update(frameScale);
+        frameAccumulatorMs -= stepMs;
+        shouldDraw = true;
+      }
+    }
+  } else {
+    frameAccumulatorMs = 0;
+  }
+
+  if (shouldDraw) draw();
   requestAnimationFrame(loop);
 }
 
