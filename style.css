@@ -196,3 +196,127 @@ canvas {
   color: #fff;
   text-shadow: 0 0 20px rgba(255,255,255,0.3);
 }
+/* ── Audio Controls ───────────────────────────────────── */
+.audio-controls {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border-top: 1px solid #1a1a1a;
+  border-bottom: 1px solid #1a1a1a;
+  padding: 10px 0;
+  margin: 2px 0;
+}
+
+.audio-player {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 0 6px;
+  background: #050505;
+  border: 1px solid #1e1e1e;
+}
+
+.audio-track-row {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.audio-label {
+  font-size: 9px;
+  letter-spacing: 0.3em;
+  color: #333;
+}
+
+.audio-track-name {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  color: #888;
+  min-height: 16px;
+}
+
+.audio-transport {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.transport-btn {
+  width: 34px;
+  height: 28px;
+  background: transparent;
+  border: 1px solid #2a2a2a;
+  color: #555;
+  font-size: 10px;
+  cursor: pointer;
+  transition: all 0.12s ease;
+  outline: none;
+  font-family: inherit;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.transport-btn:hover { border-color: #555; color: #fff; background: #111; }
+
+.transport-btn.primary {
+  width: 40px;
+  height: 32px;
+  border-color: #fff;
+  color: #fff;
+  font-size: 13px;
+  background: #111;
+}
+
+.transport-btn.primary:hover { background: #fff; color: #000; }
+
+.slider-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+}
+
+.slider-row input[type="range"] {
+  flex: 1;
+  accent-color: #fff;
+  cursor: pointer;
+}
+
+.vol-label {
+  font-size: 10px;
+  color: #555;
+  min-width: 32px;
+  text-align: right;
+  letter-spacing: 0.05em;
+}
+
+.keybind-input {
+  background: #0d0d0d;
+  border: 1px solid #2a2a2a;
+  color: #aaa;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 11px;
+  padding: 4px 8px;
+  width: 90px;
+  text-align: center;
+  outline: none;
+  cursor: pointer;
+  transition: border-color 0.12s ease;
+}
+
+.keybind-input:focus {
+  border-color: #fff;
+  color: #fff;
+}
+.scroll-container {
+  height: 200px;    /* Required for vertical scroll */
+  width: 300px;
+  overflow-y: auto; /* Adds vertical scroll only if needed */
+  border: 1px solid #ccc;
+}
