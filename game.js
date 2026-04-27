@@ -8,7 +8,8 @@ const SETTINGS = {
   paddleSize: { small: 50, normal: 80, large: 110 },
   winScore:   { '5': 5, '10': 10, '20': 20, '0': 0 },
   trail:      { on: true, off: false },
-  frameRate:  { '30': 30, '60': 60, '120': 120, unlimited: 0 }
+  frameRate:  { '30': 30, '60': 60, '120': 120, unlimited: 0 },
+  paddleColor: { white: '#fff', cyan: '#0ff', lime: '#0f0', magenta: '#f0f', yellow: '#ff0', orange: '#f80', pink: '#f88' }
 };
 
 let cfg = {
@@ -16,7 +17,9 @@ let cfg = {
   paddleSize: 'normal',
   winScore:   '10',
   trail:      'on',
-  frameRate:  '60'
+  frameRate:  '60',
+  leftPaddleColor:  'white',
+  rightPaddleColor: 'white'
 };
 
 // ── Keybinds ──────────────────────────────────────────────
@@ -757,10 +760,10 @@ function draw() {
   const leftGlow  = hasEffect('bigpaddle_left')  ? '#4f4' : hasEffect('shrink_left')  ? '#f84' : null;
   const rightGlow = hasEffect('bigpaddle_right') ? '#4f4' : hasEffect('shrink_right') ? '#f84' : null;
 
-  ctx.fillStyle = leftGlow || '#fff';
+  ctx.fillStyle = leftGlow || SETTINGS.paddleColor[cfg.leftPaddleColor];
   ctx.fillRect(20, leftY, PAD_W, leftPadH);
 
-  ctx.fillStyle = rightGlow || '#fff';
+  ctx.fillStyle = rightGlow || SETTINGS.paddleColor[cfg.rightPaddleColor];
   ctx.fillRect(W - 20 - PAD_W, rightY, PAD_W, rightPadH);
 
   // Ball (purple tint when ghost is active)
