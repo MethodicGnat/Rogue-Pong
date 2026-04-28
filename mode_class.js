@@ -20,7 +20,7 @@ const MODE_SUBTITLES = {
   normal:            'Classic pong',
   noWallsMode:       'Ball wraps through top & bottom',
   rockPaperScissors: 'Lose the RPS? Dodge the ball!',
-  flappyBird:        'Gravity is real — jump to survive'
+  flappyBird:        'Gravity is real — bounce past the walls'
 };
 
 function getCurrentMode() {
@@ -57,12 +57,12 @@ function onModeEnter(mode) {
     rpsPunishSide     = null;
   }
   if (mode === 'flappyBird') {
-    fbPipes = [];
-    fbPipeTimer = 0;
+    buildFbWalls();
     fbP1Vel = 0;
     fbP2Vel = 0;
-    fbP1Grounded = false;
-    fbP2Grounded = false;
+    fbLastFlap1 = false;
+    fbLastFlap2 = false;
+    fbWallTime  = 0;
   }
 }
 
@@ -347,110 +347,135 @@ function drawRpsOverlay() {
 
 const FB_GRAVITY   = 0.28;
 const FB_FLAP      = -6.5;
-const FB_PIPE_GAP  = 130;   // vertical opening size
-const FB_PIPE_W    = 18;
-const FB_PIPE_SPEED = 1.8;
-const FB_PIPE_INTERVAL = 180; // frames between pipes
+const FB_WALL_GAP  = 140;   // vertical opening size in each static wall
+const FB_WALL_W    = 18;
 
-let fbPipes = [];       // { x, topH }
-let fbPipeTimer = 0;
+// Static walls defined as { x (0-1 fraction of W), gapY (0-1 fraction of H) }
+// These are initialised in onModeEnter so they use the live W/H values.
+let fbWalls = [];       // { x, gapY } — pixel coords set on mode enter
 let fbP1Vel = 0;
 let fbP2Vel = 0;
 let fbLastFlap1 = false; // edge-detect
 let fbLastFlap2 = false;
 
+let fbWallTime = 0; // global timer for wall animation
+
+function buildFbWalls() {
+  // 3 walls evenly spread across the middle third of the canvas.
+  // Each wall gets its own sine-wave phase and speed so they move independently.
+  const positions = [0.32, 0.5, 0.68];
+  fbWalls = positions.map((xFrac, i) => ({
+    x:         xFrac * W,
+    phase:     (i / positions.length) * Math.PI * 2,  // stagger phases
+    speed:     0.012 + i * 0.004,                      // slightly different speeds
+    amplitude: (H - FB_WALL_GAP - 60) / 2,             // max travel range
+    gapY:      0                                        // computed each frame
+  }));
+  fbWallTime = 0;
+}
+
 function updateFlappyBird(frameScale) {
   const leftPadH  = getLeftPadH();
   const rightPadH = getRightPadH();
 
-  // Gravity on paddles
-  fbP1Vel = (fbP1Vel + FB_GRAVITY) * frameScale + fbP1Vel * (1 - frameScale);
-  fbP2Vel = (fbP2Vel + FB_GRAVITY) * frameScale + fbP2Vel * (1 - frameScale);
+  // Advance wall animation timer
+  fbWallTime += frameScale;
 
-  // Simplify: apply velocity each frame
-  fbP1Vel += FB_GRAVITY * frameScale;
-  fbP2Vel += FB_GRAVITY * frameScale;
-
-  // Flap on UP key (edge-detect)
-  const p1Up = keys[keybinds.p1Up] || keys[keybinds.p1Up.toLowerCase()];
-  const p2Up = keys[keybinds.p2Up] || keys[keybinds.p2Up.toLowerCase()];
-  if (p1Up && !fbLastFlap1) { fbP1Vel = FB_FLAP; }
-  if (p2Up && !fbLastFlap2) { fbP2Vel = FB_FLAP; }
-  fbLastFlap1 = p1Up;
-  fbLastFlap2 = p2Up;
-
-  // Clamp velocity
-  fbP1Vel = Math.max(-10, Math.min(10, fbP1Vel));
-  fbP2Vel = Math.max(-10, Math.min(10, fbP2Vel));
-
-  leftY  = Math.max(0, Math.min(H - leftPadH,  leftY  + fbP1Vel * frameScale));
-  rightY = Math.max(0, Math.min(H - rightPadH, rightY + fbP2Vel * frameScale));
-
-  // Spawn pipes
-  fbPipeTimer += frameScale;
-  if (fbPipeTimer >= FB_PIPE_INTERVAL) {
-    fbPipeTimer -= FB_PIPE_INTERVAL;
-    const minTop = 40;
-    const maxTop = H - FB_PIPE_GAP - 40;
-    const topH = minTop + Math.random() * (maxTop - minTop);
-    fbPipes.push({ x: W, topH });
+  // Animate each wall's gap position with its own sine wave
+  for (const wall of fbWalls) {
+    const centre = (H - FB_WALL_GAP) / 2;
+    wall.gapY = centre + Math.sin(fbWallTime * wall.speed + wall.phase) * wall.amplitude;
+    wall.gapY = Math.max(20, Math.min(H - FB_WALL_GAP - 20, wall.gapY));
   }
 
-  // Move pipes & check collisions
-  fbPipes = fbPipes.filter(pipe => {
-    pipe.x -= FB_PIPE_SPEED * frameScale;
+  // Gravity on left (human) paddle only
+  fbP1Vel += FB_GRAVITY * frameScale;
 
-    // Ball hits pipe?
-    if (
-      ballX + BALL_SIZE > pipe.x && ballX < pipe.x + FB_PIPE_W &&
-      (ballY < pipe.topH || ballY + BALL_SIZE > pipe.topH + FB_PIPE_GAP)
-    ) {
-      ballDX *= -1;
-      ballDY  = (Math.random() - 0.5) * Math.abs(ballDX) * 2;
-    }
+  // Flap on UP key (edge-detect) — P1 only; bot uses normal AI movement
+  const p1Up = keys[keybinds.p1Up] || keys[keybinds.p1Up.toLowerCase()];
+  if (p1Up && !fbLastFlap1) { fbP1Vel = FB_FLAP; }
+  fbLastFlap1 = p1Up;
 
-    return pipe.x + FB_PIPE_W > 0;
-  });
+  // Clamp and apply P1 velocity
+  fbP1Vel = Math.max(-10, Math.min(10, fbP1Vel));
+  leftY   = Math.max(0, Math.min(H - leftPadH, leftY + fbP1Vel * frameScale));
 
-  // Normal ball physics (walls bounce)
+  // Bot (right paddle) uses normal AI movement — no gravity
+  if (!botActive) {
+    fbP2Vel += FB_GRAVITY * frameScale;
+    const p2Up = keys[keybinds.p2Up] || keys[keybinds.p2Up.toLowerCase()];
+    if (p2Up && !fbLastFlap2) { fbP2Vel = FB_FLAP; }
+    fbLastFlap2 = p2Up;
+    fbP2Vel = Math.max(-10, Math.min(10, fbP2Vel));
+    rightY  = Math.max(0, Math.min(H - rightPadH, rightY + fbP2Vel * frameScale));
+  }
+  // (bot rightY is managed by updateBot() in game.js when botActive)
+
+  // Move ball
   moveBall(frameScale);
-  if (ballY <= 0)               { ballY = 0;             ballDY *= -1; }
-  if (ballY + BALL_SIZE >= H)   { ballY = H - BALL_SIZE; ballDY *= -1; }
+
+  // Bounce off top/bottom walls (no passing through)
+  if (ballY <= 0)               { ballY = 0;             ballDY = Math.abs(ballDY); }
+  if (ballY + BALL_SIZE >= H)   { ballY = H - BALL_SIZE; ballDY = -Math.abs(ballDY); }
+
+  // Bounce off static centre walls
+  for (const wall of fbWalls) {
+    const wallLeft  = wall.x;
+    const wallRight = wall.x + FB_WALL_W;
+    const gapTop    = wall.gapY;
+    const gapBot    = wall.gapY + FB_WALL_GAP;
+
+    // Horizontal overlap with wall?
+    if (ballX + BALL_SIZE > wallLeft && ballX < wallRight) {
+      // Is the ball in the SOLID part (not in the gap)?
+      if (ballY < gapTop || ballY + BALL_SIZE > gapBot) {
+        // Deflect: reverse X and add a small random Y nudge
+        ballDX *= -1;
+        ballX   = ballDX > 0 ? wallRight : wallLeft - BALL_SIZE;
+        ballDY += (Math.random() - 0.5) * 2;
+      }
+    }
+  }
 }
 
 function drawFlappyPipes() {
   if (getCurrentMode() !== 'flappyBird') return;
   ctx.save();
-  fbPipes.forEach(pipe => {
-    // Top pipe
+
+  fbWalls.forEach(wall => {
+    const gapTop = wall.gapY;
+    const gapBot = wall.gapY + FB_WALL_GAP;
+
+    // Top solid section
     ctx.fillStyle = '#1e3a1e';
-    ctx.fillRect(pipe.x, 0, FB_PIPE_W, pipe.topH);
+    ctx.fillRect(wall.x, 0, FB_WALL_W, gapTop);
     ctx.strokeStyle = '#4f4';
     ctx.lineWidth = 1;
-    ctx.strokeRect(pipe.x, 0, FB_PIPE_W, pipe.topH);
+    ctx.strokeRect(wall.x, 0, FB_WALL_W, gapTop);
 
-    // Bottom pipe
-    const botY = pipe.topH + FB_PIPE_GAP;
+    // Bottom solid section
     ctx.fillStyle = '#1e3a1e';
-    ctx.fillRect(pipe.x, botY, FB_PIPE_W, H - botY);
+    ctx.fillRect(wall.x, gapBot, FB_WALL_W, H - gapBot);
     ctx.strokeStyle = '#4f4';
-    ctx.strokeRect(pipe.x, botY, FB_PIPE_W, H - botY);
+    ctx.strokeRect(wall.x, gapBot, FB_WALL_W, H - gapBot);
 
     // Gap highlight
-    ctx.strokeStyle = 'rgba(100,255,100,0.12)';
-    ctx.lineWidth = FB_PIPE_GAP;
+    ctx.strokeStyle = 'rgba(100,255,100,0.10)';
+    ctx.lineWidth = FB_WALL_GAP;
     ctx.beginPath();
-    ctx.moveTo(pipe.x + FB_PIPE_W/2, pipe.topH);
-    ctx.lineTo(pipe.x + FB_PIPE_W/2, pipe.topH + FB_PIPE_GAP);
+    ctx.moveTo(wall.x + FB_WALL_W / 2, gapTop);
+    ctx.lineTo(wall.x + FB_WALL_W / 2, gapBot);
     ctx.stroke();
   });
 
-  // Gravity indicator (small arrow on each paddle)
+  // Gravity indicator — only on human-controlled paddles
   ctx.fillStyle = 'rgba(100,255,100,0.4)';
   ctx.font = '14px monospace';
   ctx.textAlign = 'center';
   ctx.fillText('▼', 20 + PAD_W/2, leftY + getLeftPadH() + 16);
-  ctx.fillText('▼', W - 20 - PAD_W/2, rightY + getRightPadH() + 16);
+  if (!botActive) {
+    ctx.fillText('▼', W - 20 - PAD_W/2, rightY + getRightPadH() + 16);
+  }
 
   ctx.restore();
 }
