@@ -9,7 +9,8 @@ const SETTINGS = {
   winScore:   { '5': 5, '10': 10, '20': 20, '0': 0 },
   trail:      { on: true, off: false },
   frameRate:  { '30': 30, '60': 60, '120': 120, unlimited: 0 },
-  paddleColor: { white: '#fff', cyan: '#0ff', lime: '#0f0', magenta: '#f0f', yellow: '#ff0', orange: '#f80', pink: '#f88' }
+  paddleColor: { white: '#fff', cyan: '#0ff', lime: '#0f0', magenta: '#f0f', yellow: '#ff0', orange: '#f80', pink: '#f88' },
+  ballColor:   { white: '#fff', cyan: '#0ff', lime: '#0f0', magenta: '#f0f', yellow: '#ff0', orange: '#f80', pink: '#f88' }
 };
 
 let cfg = {
@@ -19,7 +20,8 @@ let cfg = {
   trail:      'on',
   frameRate:  '60',
   leftPaddleColor:  'white',
-  rightPaddleColor: 'white'
+  rightPaddleColor: 'white',
+  ballColor: 'white'
 };
 
 // ── Keybinds ──────────────────────────────────────────────
@@ -762,12 +764,16 @@ function draw() {
 
   ctx.fillStyle = leftGlow || SETTINGS.paddleColor[cfg.leftPaddleColor];
   ctx.fillRect(20, leftY, PAD_W, leftPadH);
+  
+  ctx.fillStyle = SETTINGS.ballColor[cfg.ballColor]; // Ball color glow for left paddle effects
+  ctx.fillRect(ballX, ballY, BALL_SIZE, BALL_SIZE);
+
 
   ctx.fillStyle = rightGlow || SETTINGS.paddleColor[cfg.rightPaddleColor];
   ctx.fillRect(W - 20 - PAD_W, rightY, PAD_W, rightPadH);
 
   // Ball (purple tint when ghost is active)
-  ctx.fillStyle = ghostBall ? '#c8f' : '#fff';
+  ctx.fillStyle = ghostBall ? '#c8f' : SETTINGS.ballColor[cfg.ballColor];
   ctx.fillRect(ballX, ballY, BALL_SIZE, BALL_SIZE);
 
   // Scores
