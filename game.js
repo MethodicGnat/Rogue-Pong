@@ -32,8 +32,10 @@ const keybinds = {
   p2Down:    'ArrowDown',
   p1Shop:    'e',
   p1Powerup: 'q',
+  p1Emote:   'r',
   p2Shop:    '/',
-  p2Powerup: '.'
+  p2Powerup: '.',
+  p2Emote:   'o'
 };
 
 // Sync keybind inputs → keybinds object (called once DOM is ready)
@@ -254,8 +256,8 @@ let rightItem = null;
 // Ghost-ball: ball passes through opponent's paddle once
 let ghostBall = false;
 
-// Curve-shot charges (each is { side: 'left'|'right' })
-let curvePending = { left: false, right: false };
+// Curve effect on ball
+let curveDY = 0;
 
 // ── Powerup definitions ───────────────────────────────────
 const POWERUPS = [
@@ -367,12 +369,33 @@ function activateItem(side) {
       ghostBall = true;
       break;
     case 'curve':
-      curvePending[side] = true;
+      curveDY = (Math.random() - 0.5) * 4; // Random direction and strength
       break;
   }
 
   if (side === 'left') leftItem  = null;
   else                 rightItem = null;
+}
+
+// ── Emotes ─────────────────────────────────────────────────
+const EMOTES = ['😊', '😢', '😡', '👍', '👎'];
+
+let leftEmote = null;  // { emoji, framesLeft }
+let rightEmote = null;
+let leftEmoteIndex = 0;
+let rightEmoteIndex = 0;
+
+function setEmote(side) {
+  const index = side === 'left' ? leftEmoteIndex : rightEmoteIndex;
+  const emoji = EMOTES[index];
+  const emote = { emoji, framesLeft: 3 * FPS };
+  if (side === 'left') {
+    leftEmote = emote;
+    leftEmoteIndex = (leftEmoteIndex + 1) % EMOTES.length;
+  } else {
+    rightEmote = emote;
+    rightEmoteIndex = (rightEmoteIndex + 1) % EMOTES.length;
+  }
 }
 
 // ── Shop logic ────────────────────────────────────────────
@@ -574,6 +597,16 @@ document.addEventListener('keydown', e => {
     return;
   }
 
+  // Emote
+  if (matchKey(e.key, keybinds.p1Emote) && gameState === 'playing') {
+    setEmote('left');
+    return;
+  }
+  if (matchKey(e.key, keybinds.p2Emote) && gameState === 'playing') {
+    setEmote('right');
+    return;
+  }
+
   // Shop navigation: number keys 1–5 to buy
   if (gameState === 'shop' && shopOpen) {
     const idx = parseInt(e.key) - 1;
@@ -600,8 +633,9 @@ function startGame(withBot) {
   leftItem   = null; rightItem = null;
   activeEffects = [];
   ghostBall  = false;
-  curvePending = { left: false, right: false };
+  curveDY = 0;
   trailPoints = [];
+  leftEmote = null; rightEmote = null;
   resetBall(Math.random() < 0.5 ? 1 : -1);
   gameState = 'playing';
   playTimeFrames = 0;
@@ -619,6 +653,7 @@ function resetBall(dir) {
   ballDY = (spd * 0.75) * (Math.random() < 0.5 ? 1 : -1);
   trailPoints = [];
   ghostBall = false;
+  curveDY = 0; // Reset curve on new ball
 }
 
 function speedUpBall() {
@@ -667,6 +702,16 @@ function update(frameScale) {
 
   tickEffects(frameScale);
 
+  // Tick emotes
+  if (leftEmote) {
+    leftEmote.framesLeft -= frameScale;
+    if (leftEmote.framesLeft <= 0) leftEmote = null;
+  }
+  if (rightEmote) {
+    rightEmote.framesLeft -= frameScale;
+    if (rightEmote.framesLeft <= 0) rightEmote = null;
+  }
+
   const leftPadH  = getLeftPadH();
   const rightPadH = getRightPadH();
 
@@ -705,11 +750,6 @@ function update(frameScale) {
       ballX = 20 + PAD_W;
       const rel = (ballY + BALL_SIZE / 2 - leftY) / leftPadH;
       ballDY = (rel - 0.5) * 2 * Math.abs(ballDX) * 1.2;
-      if (curvePending.left) {
-        ballDY += (Math.random() < 0.5 ? 1 : -1) * Math.abs(ballDX) * 1.5;
-        curvePending.left = false;
-      }
-      speedUpBall();
       ghostBall = false;
       onPaddleHit();
     }
@@ -724,15 +764,14 @@ function update(frameScale) {
       ballX = W - 20 - PAD_W - BALL_SIZE;
       const rel = (ballY + BALL_SIZE / 2 - rightY) / rightPadH;
       ballDY = (rel - 0.5) * 2 * Math.abs(ballDX) * 1.2;
-      if (curvePending.right) {
-        ballDY += (Math.random() < 0.5 ? 1 : -1) * Math.abs(ballDX) * 1.5;
-        curvePending.right = false;
-      }
-      speedUpBall();
       ghostBall = false;
       onPaddleHit();
     }
   }
+
+  // Apply curve effect
+  ballDY += curveDY;
+  curveDY *= 0.98; // Decay over time
 
   // Scoring
   if (ballX < 0) {
@@ -786,6 +825,20 @@ function draw() {
 
   ctx.fillStyle = rightGlow || SETTINGS.paddleColor[cfg.rightPaddleColor];
   ctx.fillRect(W - 20 - PAD_W, rightY, PAD_W, rightPadH);
+
+  // Emotes
+  if (leftEmote) {
+    ctx.font = '20px monospace';
+    ctx.fillStyle = '#fff';
+    ctx.textAlign = 'left';
+    ctx.fillText(leftEmote.emoji, 30, leftY + leftPadH / 2 + 10);
+  }
+  if (rightEmote) {
+    ctx.font = '20px monospace';
+    ctx.fillStyle = '#fff';
+    ctx.textAlign = 'right';
+    ctx.fillText(rightEmote.emoji, W - 30, rightY + rightPadH / 2 + 10);
+  }
 
   // Ball (purple tint when ghost is active)
   ctx.fillStyle = ghostBall ? '#c8f' : SETTINGS.ballColor[cfg.ballColor];

@@ -156,6 +156,7 @@ canvas {
   justify-content: space-between;
   gap: 12px;
   margin: 4px 0;  
+  margin: 4px 0;  
 }
 
 .setting-row label {
