@@ -7,13 +7,13 @@
 </head>
 <body>
   <canvas id="c" width="800" height="500"></canvas>
-  <p id="controls-hint">W/S — Move &nbsp;|&nbsp; <kbd>P</kbd> or <kbd>Esc</kbd> — Pause</p>
+  <p id="controls-hint">W/S — Move | <kbd>P</kbd> or <kbd>Esc</kbd> — Pause</p>
 
   <div id="overlay" class="overlay active">
 
     <div class="menu-box" id="main-menu">
-      <div class="menu-title">PONG</div>
-      <div class="menu-subtitle">ARCADE EDITION</div>
+      <div class="menu-title">ROGUE PONG</div>
+      <div class="menu-subtitle">best game ever invented #1 in all game</div>
       <div class="menu-divider"></div>
       <button class="menu-btn primary" id="btn-vs-bot">▶ vs Bot</button>
       <button class="menu-btn" id="btn-start">⇄ Local 2-Player</button>
@@ -45,6 +45,7 @@
       <div class="menu-divider"></div>
       <fieldset class="settings-box">
       <div class="setting-row">
+        
         <label>Ball Speed</label>
         <div class="btn-group">
           <button class="opt-btn" data-setting="ballSpeed" data-value="slow">Slow</button>
@@ -52,6 +53,20 @@
           <button class="opt-btn" data-setting="ballSpeed" data-value="fast">Fast</button>
         </div>
       </div>
+       
+            <div class="setting-row">
+        <label>Ball Color</label>
+        <div class="btn-group color-group">
+          <button class="opt-btn color-btn active" data-setting="ballColor" data-value="white" style="background-color: #fff; color: #000;" title="White">◯</button>
+          <button class="opt-btn color-btn" data-setting="ballColor" data-value="cyan" style="background-color: #0ff; color: #000;" title="Cyan">◯</button>
+          <button class="opt-btn color-btn" data-setting="ballColor" data-value="lime" style="background-color: #0f0; color: #000;" title="Lime">◯</button>
+          <button class="opt-btn color-btn" data-setting="ballColor" data-value="magenta" style="background-color: #f0f;" title="Magenta">◯</button>
+          <button class="opt-btn color-btn" data-setting="ballColor" data-value="yellow" style="background-color: #ff0; color: #000;" title="Yellow">◯</button>
+          <button class="opt-btn color-btn" data-setting="ballColor" data-value="orange" style="background-color: #f80;" title="Orange">◯</button>
+          <button class="opt-btn color-btn" data-setting="ballColor" data-value="pink" style="background-color: #f88;" title="Pink">◯</button>
+        </div>
+      </div>
+      
       <div class="setting-row">
         <label>Frame Rate</label>
         <div class="btn-group">
@@ -146,6 +161,12 @@
         </div>
       </div>
       <div class="setting-row">
+        <label>Player 1 Emote</label>
+        <div class="text-group">
+          <input class="keybind-input" data-binding="p1Emote" value="R" maxlength="1">
+        </div>
+      </div>
+      <div class="setting-row">
         <label>Player 2 Shop</label>
         <div class="text-group">
           <input class="keybind-input" data-binding="p2Shop" value="/" maxlength="1">
@@ -155,6 +176,12 @@
         <label>Player 2 Powerup</label>
         <div class="text-group">
           <input class="keybind-input" data-binding="p2Powerup" value="." maxlength="1">
+        </div>
+      </div>
+      <div class="setting-row">
+        <label>Player 2 Emote</label>
+        <div class="text-group">
+          <input class="keybind-input" data-binding="p2Emote" value="O" maxlength="1">
         </div>
       </div>
 
