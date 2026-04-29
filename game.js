@@ -236,6 +236,9 @@ let botTargetY = H / 2;
 let botTickCount = 0;
 let lastDifficulty = 'hard';
 
+const BALL_SPEEDUP_PER_HIT = 1.04;
+const BALL_SPEED_CAP       = SETTINGS.ballSpeed.fast * 2.5;
+
 // ── Shop / Economy state ──────────────────────────────────
 let leftCoins  = 0;
 let rightCoins = 0;
@@ -618,6 +621,16 @@ function resetBall(dir) {
   ghostBall = false;
 }
 
+function speedUpBall() {
+  const speed = Math.hypot(ballDX, ballDY);
+  if (speed <= 0) return;
+
+  const nextSpeed = Math.min(speed * BALL_SPEEDUP_PER_HIT, BALL_SPEED_CAP);
+  const scale = nextSpeed / speed;
+  ballDX *= scale;
+  ballDY *= scale;
+}
+
 function getWin() { return SETTINGS.winScore[cfg.winScore]; }
 
 function checkWin() {
@@ -696,6 +709,7 @@ function update(frameScale) {
         ballDY += (Math.random() < 0.5 ? 1 : -1) * Math.abs(ballDX) * 1.5;
         curvePending.left = false;
       }
+      speedUpBall();
       ghostBall = false;
       onPaddleHit();
     }
@@ -714,6 +728,7 @@ function update(frameScale) {
         ballDY += (Math.random() < 0.5 ? 1 : -1) * Math.abs(ballDX) * 1.5;
         curvePending.right = false;
       }
+      speedUpBall();
       ghostBall = false;
       onPaddleHit();
     }
