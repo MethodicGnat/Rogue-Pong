@@ -70,7 +70,7 @@ function loadTrack(idx) {
   musicAudio.src = MUSIC_TRACKS[musicIndex].file;
   applyMusicVolume();
 }
-
+const FPS = 60;
 function applyMusicVolume() {
   musicAudio.volume = Math.min(1, audioVol.master * audioVol.music);
 }
@@ -234,10 +234,26 @@ let botTargetY = H / 2;
 let botTickCount = 0;
 let lastDifficulty = 'hard';
 
+// ── Round / Shop state ────────────────────────────────────
+const ROUND_DURATION_SEC = 30;          // seconds per round before shop
+const SHOP_DURATION_SEC  = 15;          // seconds the shop is open
+const ROUND_DURATION_FRAMES = ROUND_DURATION_SEC * FPS;
+const SHOP_DURATION_FRAMES  = SHOP_DURATION_SEC  * FPS;
+
+let roundNumber       = 0;
+let roundFrames       = 0;              // counts up during a round
+let shopPhase         = false;          // true while between-round shop is showing
+let shopTimerFrames   = 0;              // counts down during shop phase
+let doublePointsRound = false;          // true when this round gives 2× coins
+
+// Per-player shop cursor (index into POWERUPS)
+let leftShopCursor  = 0;
+let rightShopCursor = 0;
+
 // ── Shop / Economy state ──────────────────────────────────
 let leftCoins  = 0;
 let rightCoins = 0;
-let shopOpen   = null; // null | 'left' | 'right'
+let shopOpen   = null; // null | 'left' | 'right' (legacy single-side shop)
 
 // Active effects: each entry is { type, framesLeft }
 let activeEffects = [];
@@ -297,7 +313,7 @@ const POWERUPS = [
 ];
 
 // ── Effect helpers ────────────────────────────────────────
-const FPS = 60;
+
 function hasEffect(type) { return activeEffects.some(e => e.type === type); }
 
 function applyEffect(type) {
@@ -385,21 +401,51 @@ function closeShop() {
 function buyPowerup(side, powerupKey) {
   const pu = POWERUPS.find(p => p.key === powerupKey);
   if (!pu) return;
+  const coins   = side === 'left' ? leftCoins  : rightCoins;
+  const hasItem = side === 'left' ? leftItem   : rightItem;
+  if (coins < pu.cost) return;
+  if (hasItem) return;
+  if (side === 'left') { leftCoins  -= pu.cost; leftItem  = powerupKey; }
+  else                 { rightCoins -= pu.cost; rightItem = powerupKey; }
+  if (!shopPhase) closeShop();
+}
 
-  const coins     = side === 'left' ? leftCoins  : rightCoins;
-  const hasItem   = side === 'left' ? leftItem   : rightItem;
+// ── Between-round full-screen shop ────────────────────────
+function startBetweenRoundShop() {
+  shopPhase        = true;
+  shopTimerFrames  = SHOP_DURATION_FRAMES;
+  leftShopCursor   = 0;
+  rightShopCursor  = 0;
+  gameState        = 'roundShop';
 
-  if (coins < pu.cost) return;   // can't afford
-  if (hasItem) return;           // already holding one
+  // Determine double-points for the upcoming round (never round 1)
+  doublePointsRound = roundNumber >= 1 && Math.random() < 0.35;
 
-  if (side === 'left') {
-    leftCoins -= pu.cost;
-    leftItem   = powerupKey;
-  } else {
-    rightCoins -= pu.cost;
-    rightItem   = powerupKey;
+  // Bot auto-buys: pick the best affordable item it doesn't already hold
+  if (botActive) {
+    botAutoBuy();
   }
-  closeShop();
+}
+
+function botAutoBuy() {
+  if (rightItem) return; // already holding something
+  // Prioritise by cost descending (best items first) if affordable
+  const affordable = POWERUPS
+    .filter(p => rightCoins >= p.cost)
+    .sort((a, b) => b.cost - a.cost);
+  if (affordable.length > 0) {
+    const pick = affordable[0];
+    rightCoins -= pick.cost;
+    rightItem   = pick.key;
+  }
+}
+
+function endBetweenRoundShop() {
+  shopPhase   = false;
+  roundFrames = 0;
+  roundNumber++;
+  gameState   = 'playing';
+  resetBall(Math.random() < 0.5 ? 1 : -1);
 }
 
 // ── DOM refs ─────────────────────────────────────────────
@@ -511,6 +557,7 @@ document.getElementById('btn-winner-main').addEventListener('click', () => {
   showMenu(mainMenu);
 });
 
+
 document.querySelectorAll('.opt-btn').forEach(btn => {
   btn.addEventListener('click', () => {
     const setting = btn.dataset.setting;
@@ -531,6 +578,11 @@ document.addEventListener('keydown', e => {
   let key = e.key.toLowerCase();
   keys[key] = true;
 
+  // BUG FIX: Prevent Enter from triggering default form submission during gameplay or shop
+  if (key === 'enter' && (gameState === 'playing' || gameState === 'roundShop')) {
+    e.preventDefault();
+  }
+
   // Pause / unpause
   if ((key === 'p' || key === 'escape') && gameState === 'playing') {
     gameState = 'paused';
@@ -543,45 +595,62 @@ document.addEventListener('keydown', e => {
     return;
   }
 
-  // Close shop with Escape
+  // Close legacy shop with Escape
   if (key === 'escape' && gameState === 'shop') {
     closeShop();
     return;
   }
 
-  // Open shops
-  if (matchKey(e.key, keybinds.p1Shop) && gameState === 'playing') {
-    openShop('left');
-    return;
-  }
-  if (matchKey(e.key, keybinds.p2Shop) && gameState === 'playing') {
-    openShop('right');
-    return;
-  }
+  // ── Between-round shop navigation ────────────────────
+  if (gameState === 'roundShop') {
+    // BUG FIX: Use lowercase keybinds for consistent Enter key matching
+    const p1UpKey   = keybinds.p1Up.toLowerCase();
+    const p1DownKey = keybinds.p1Down.toLowerCase();
+    const p2UpKey   = keybinds.p2Up.toLowerCase();
+    const p2DownKey = keybinds.p2Down.toLowerCase();
 
-  // Activate items
-  if (matchKey(e.key, keybinds.p1Powerup) && gameState === 'playing') {
-    activateItem('left');
-    return;
-  }
-  if (matchKey(e.key, keybinds.p2Powerup) && gameState === 'playing') {
-    activateItem('right');
-    return;
-  }
+    // P1 navigate
+    if (matchKey(e.key, p1UpKey)) {
+      leftShopCursor = (leftShopCursor - 1 + POWERUPS.length) % POWERUPS.length;
+      e.preventDefault(); return;
+    }
+    if (matchKey(e.key, p1DownKey)) {
+      leftShopCursor = (leftShopCursor + 1) % POWERUPS.length;
+      e.preventDefault(); return;
+    }
+    // P1 buy (shop key / confirm)
+    if (matchKey(e.key, keybinds.p1Shop.toLowerCase())) {
+      buyPowerup('left', POWERUPS[leftShopCursor].key);
+      e.preventDefault(); return;
+    }
 
-  // Shop navigation: number keys 1–5 to buy
-  if (gameState === 'shop' && shopOpen) {
-    const idx = parseInt(e.key) - 1;
-    if (idx >= 0 && idx < POWERUPS.length) {
-      buyPowerup(shopOpen, POWERUPS[idx].key);
+    // P2 navigate (only in 2-player)
+    if (!botActive) {
+      if (matchKey(e.key, p2UpKey)) {
+        rightShopCursor = (rightShopCursor - 1 + POWERUPS.length) % POWERUPS.length;
+        e.preventDefault(); return;
+      }
+      if (matchKey(e.key, p2DownKey)) {
+        rightShopCursor = (rightShopCursor + 1) % POWERUPS.length;
+        e.preventDefault(); return;
+      }
+      if (matchKey(e.key, keybinds.p2Shop.toLowerCase())) {
+        buyPowerup('right', POWERUPS[rightShopCursor].key);
+        e.preventDefault(); return;
+      }
     }
     return;
   }
+
+  // removed legacy shop feature
 });
 document.addEventListener('keyup', e => { keys[e.key.toLowerCase()] = false; });
 
 // ── Game Functions ────────────────────────────────────────
 function startGame(withBot) {
+  // DEBUG: Log when game starts
+  console.log('DEBUG: startGame called with withBot =', withBot, 'roundFrames before reset:', roundFrames);
+  
   botActive  = withBot;
   botTickCount = 0;
   frameAccumulatorMs = 0;
@@ -597,6 +666,10 @@ function startGame(withBot) {
   ghostBall  = false;
   curvePending = { left: false, right: false };
   trailPoints = [];
+  roundNumber = 0; roundFrames = 0;
+  shopPhase = false; shopTimerFrames = 0;
+  doublePointsRound = false;
+  leftShopCursor = 0; rightShopCursor = 0;
   resetBall(Math.random() < 0.5 ? 1 : -1);
   gameState = 'playing';
   playTimeFrames = 0;
@@ -658,14 +731,15 @@ function update(frameScale) {
   // Left player movement (suppressed in flappy bird — gravity controls paddles)
   const mode = getCurrentMode();
   if (mode !== 'flappyBird') {
-    if (keys[keybinds.p1Up]   || keys[keybinds.p1Up.toLowerCase()]   || keys[keybinds.p1Up.toUpperCase()])   leftY = Math.max(0, leftY - PAD_SPEED * frameScale);
-    if (keys[keybinds.p1Down] || keys[keybinds.p1Down.toLowerCase()] || keys[keybinds.p1Down.toUpperCase()]) leftY = Math.min(H - leftPadH, leftY + PAD_SPEED * frameScale);
+    // BUG FIX: Use only lowercase keybind lookups since keys object stores lowercase entries
+    if (keys[keybinds.p1Up.toLowerCase()])   leftY = Math.max(0, leftY - PAD_SPEED * frameScale);
+    if (keys[keybinds.p1Down.toLowerCase()]) leftY = Math.min(H - leftPadH, leftY + PAD_SPEED * frameScale);
 
     if (botActive) {
       updateBot(frameScale);
     } else {
-      if (keys[keybinds.p2Up]   || keys[keybinds.p2Up.toLowerCase()]   || keys[keybinds.p2Up.toUpperCase()])   rightY = Math.max(0, rightY - PAD_SPEED * frameScale);
-      if (keys[keybinds.p2Down] || keys[keybinds.p2Down.toLowerCase()] || keys[keybinds.p2Down.toUpperCase()]) rightY = Math.min(H - rightPadH, rightY + PAD_SPEED * frameScale);
+      if (keys[keybinds.p2Up.toLowerCase()])   rightY = Math.max(0, rightY - PAD_SPEED * frameScale);
+      if (keys[keybinds.p2Down.toLowerCase()]) rightY = Math.min(H - rightPadH, rightY + PAD_SPEED * frameScale);
     }
   }
 
@@ -718,17 +792,31 @@ function update(frameScale) {
   }
 
   // Scoring
+  const coinGain = doublePointsRound ? 6 : 3;
   if (ballX < 0) {
     rightScore++;
-    rightCoins += 3;
+    rightCoins += coinGain;
     checkWin();
     if (gameState === 'playing') resetBall(1);
   }
   if (ballX > W) {
     leftScore++;
-    leftCoins += 3;
+    leftCoins += coinGain;
     checkWin();
     if (gameState === 'playing') resetBall(-1);
+  }
+
+  // ── Round timer → trigger between-round shop ──────────
+  if (gameState === 'playing') {
+    roundFrames += frameScale;
+    // DEBUG: Log round timer progress every 5 seconds
+    if (Math.floor(roundFrames / FPS) % 5 === 0 && roundFrames % frameScale < frameScale * 1.5) {
+      console.log('DEBUG: Round timer - roundFrames:', Math.floor(roundFrames), 'seconds left:', Math.ceil((ROUND_DURATION_FRAMES - roundFrames) / FPS));
+    }
+    if (roundFrames >= ROUND_DURATION_FRAMES) {
+      console.log('DEBUG: Triggering shop phase');
+      startBetweenRoundShop();
+    }
   }
 }
 
@@ -803,6 +891,12 @@ function draw() {
     ctx.fillRect(0, 0, W, H);
   }
 
+  // Between-round full-screen shop
+  if (gameState === 'roundShop') {
+    drawRoundShop();
+    return;
+  }
+
   // Shop overlay (drawn on top)
   if (gameState === 'shop') {
     drawShop();
@@ -842,6 +936,32 @@ function drawHUD() {
   } else if (!botActive) {
     ctx.fillStyle = '#2a2a2a';
     ctx.fillText(`[${keybinds.p2Shop}] Shop`, W - 22, 93);
+  }
+
+  // ── Round timer bar (bottom centre) ─────────────────────
+  const barW = 200;
+  const barX = W / 2 - barW / 2;
+  const barY = H - 16;
+  const ratio = Math.max(0, 1 - roundFrames / ROUND_DURATION_FRAMES);
+  const secsLeft = Math.ceil((ROUND_DURATION_FRAMES - roundFrames) / FPS);
+  const barColor = secsLeft > 10 ? '#2a6a2a' : secsLeft > 5 ? '#8a6a00' : '#8a2a00';
+
+  ctx.fillStyle = '#111';
+  ctx.fillRect(barX, barY, barW, 5);
+  ctx.fillStyle = barColor;
+  ctx.fillRect(barX, barY, barW * ratio, 5);
+
+  ctx.font = '9px Share Tech Mono, monospace';
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#333';
+  ctx.fillText(`ROUND ${roundNumber + 1}  ·  SHOP IN ${secsLeft}s`, W / 2, barY - 4);
+
+  // Double-points indicator
+  if (doublePointsRound) {
+    ctx.font = '700 10px Orbitron, monospace';
+    ctx.fillStyle = '#fa4';
+    ctx.textAlign = 'center';
+    ctx.fillText('✦ DOUBLE COINS ✦', W / 2, barY - 16);
   }
 }
 
@@ -1009,6 +1129,202 @@ function drawShop() {
   ctx.fillText('[ESC] Close', boxX + boxW / 2, boxY + boxH - 10);
 }
 
+function drawRoundShop() {
+  // Full-screen split: left half = P1 (dark blue), right half = P2/bot (dark red)
+  const timerRatio = Math.max(0, shopTimerFrames / SHOP_DURATION_FRAMES);
+  const secsLeft   = Math.ceil(shopTimerFrames / FPS);
+
+  // ── Backgrounds ──────────────────────────────────────────
+  ctx.fillStyle = '#000814';
+  ctx.fillRect(0, 0, W / 2, H);
+  ctx.fillStyle = '#0d0000';
+  ctx.fillRect(W / 2, 0, W / 2, H);
+
+  // ── Vertical divider ──────────────────────────────────────
+  ctx.fillStyle = '#1a1a1a';
+  ctx.fillRect(W / 2 - 1, 0, 2, H);
+
+  // ── Header banner ─────────────────────────────────────────
+  const headerH = 54;
+  // P1 header
+  ctx.fillStyle = '#000d22';
+  ctx.fillRect(0, 0, W / 2, headerH);
+  ctx.font = '700 14px Orbitron, monospace';
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#4af';
+  ctx.fillText('PLAYER 1', W / 4, 22);
+  ctx.font = '11px Share Tech Mono, monospace';
+  ctx.fillStyle = '#fa4';
+  ctx.fillText(`¢ ${leftCoins}`, W / 4, 38);
+  if (leftItem) {
+    const held = POWERUPS.find(p => p.key === leftItem);
+    ctx.fillStyle = held.color;
+    ctx.font = '9px Share Tech Mono, monospace';
+    ctx.fillText(`HOLDING: ${held.label}`, W / 4, 50);
+  }
+
+  // P2/Bot header
+  ctx.fillStyle = '#1a0000';
+  ctx.fillRect(W / 2, 0, W / 2, headerH);
+  ctx.font = '700 14px Orbitron, monospace';
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#f64';
+  ctx.fillText(botActive ? 'BOT' : 'PLAYER 2', 3 * W / 4, 22);
+  ctx.font = '11px Share Tech Mono, monospace';
+  ctx.fillStyle = '#fa4';
+  ctx.fillText(`¢ ${rightCoins}`, 3 * W / 4, 38);
+  if (rightItem) {
+    const held = POWERUPS.find(p => p.key === rightItem);
+    ctx.fillStyle = held.color;
+    ctx.font = '9px Share Tech Mono, monospace';
+    ctx.fillText(`HOLDING: ${held.label}`, 3 * W / 4, 50);
+  }
+
+  // ── Shared top label ──────────────────────────────────────
+  ctx.font = '700 18px Orbitron, monospace';
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#fff';
+  ctx.fillText('SHOP', W / 2, 22);
+  ctx.font = '9px Share Tech Mono, monospace';
+  ctx.fillStyle = '#555';
+  ctx.fillText(`ROUND ${roundNumber + 1} BREAK`, W / 2, 36);
+
+  // ── Timer bar ─────────────────────────────────────────────
+  const tBarY = headerH + 6;
+  const tBarColor = secsLeft > 8 ? '#2a6a2a' : secsLeft > 4 ? '#8a6a00' : '#8a2a00';
+  ctx.fillStyle = '#111';
+  ctx.fillRect(10, tBarY, W - 20, 6);
+  ctx.fillStyle = tBarColor;
+  ctx.fillRect(10, tBarY, (W - 20) * timerRatio, 6);
+  ctx.font = '10px Share Tech Mono, monospace';
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#555';
+  ctx.fillText(`${secsLeft}s remaining`, W / 2, tBarY + 18);
+
+  // ── Double-coins banner ───────────────────────────────────
+  let itemStartY = tBarY + 28;
+  if (doublePointsRound) {
+    ctx.font = '700 11px Orbitron, monospace';
+    ctx.textAlign = 'center';
+    const pulse = Math.sin(Date.now() / 300) * 0.5 + 0.5;
+    ctx.fillStyle = `rgba(255,${Math.floor(160 + 80 * pulse)},0,1)`;
+    ctx.fillText('✦ NEXT ROUND: DOUBLE COINS ✦', W / 2, itemStartY + 4);
+    itemStartY += 18;
+  }
+
+  // ── Item list for each side ───────────────────────────────
+  const rowH   = 44;
+  const listY  = itemStartY + 8;
+
+  POWERUPS.forEach((pu, i) => {
+    const isLeftSel  = i === leftShopCursor;
+    const isRightSel = i === rightShopCursor;
+
+    // ── Left panel row ──────────────────────────────────
+    const lRowX = 8;
+    const lRowW = W / 2 - 16;
+    const rowY  = listY + i * rowH;
+
+    const lAfford  = leftCoins >= pu.cost && !leftItem;
+    const lBought  = leftItem === pu.key;
+
+    if (isLeftSel) {
+      ctx.fillStyle = 'rgba(68,170,255,0.12)';
+      ctx.fillRect(lRowX, rowY, lRowW, rowH - 4);
+      ctx.strokeStyle = lAfford ? '#4af' : '#1a3050';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(lRowX, rowY, lRowW, rowH - 4);
+    }
+
+    // Icon
+    ctx.font = '18px monospace';
+    ctx.fillStyle = lBought ? pu.color : (lAfford ? pu.color : '#2a2a2a');
+    ctx.textAlign = 'left';
+    ctx.fillText(pu.icon, lRowX + 10, rowY + 26);
+
+    // Label & desc
+    ctx.font = '700 11px Orbitron, monospace';
+    ctx.fillStyle = lBought ? pu.color : (lAfford ? '#ddd' : '#444');
+    ctx.fillText(pu.label, lRowX + 36, rowY + 16);
+    ctx.font = '9px Share Tech Mono, monospace';
+    ctx.fillStyle = '#444';
+    ctx.fillText(pu.desc, lRowX + 36, rowY + 28);
+
+    // Cost
+    ctx.textAlign = 'right';
+    ctx.font = '10px Share Tech Mono, monospace';
+    ctx.fillStyle = lBought ? '#4f4' : (lAfford ? '#fa4' : '#333');
+    ctx.fillText(lBought ? 'HELD' : `¢${pu.cost}`, lRowX + lRowW - 8, rowY + 20);
+
+    // Cursor arrow for left player
+    if (isLeftSel) {
+      ctx.font = '12px monospace';
+      ctx.fillStyle = '#4af';
+      ctx.textAlign = 'left';
+      ctx.fillText('▶', lRowX + 1, rowY + 24);
+    }
+
+    // ── Right panel row ─────────────────────────────────
+    const rRowX = W / 2 + 8;
+    const rRowW = W / 2 - 16;
+    const rAfford  = rightCoins >= pu.cost && !rightItem;
+    const rBought  = rightItem === pu.key;
+
+    if (!botActive && isRightSel) {
+      ctx.fillStyle = 'rgba(255,100,68,0.12)';
+      ctx.fillRect(rRowX, rowY, rRowW, rowH - 4);
+      ctx.strokeStyle = rAfford ? '#f64' : '#3a1010';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(rRowX, rowY, rRowW, rowH - 4);
+    }
+
+    ctx.font = '18px monospace';
+    ctx.fillStyle = rBought ? pu.color : (rAfford ? pu.color : '#2a2a2a');
+    ctx.textAlign = 'left';
+    ctx.fillText(pu.icon, rRowX + 10, rowY + 26);
+
+    ctx.font = '700 11px Orbitron, monospace';
+    ctx.fillStyle = rBought ? pu.color : (rAfford ? '#ddd' : '#444');
+    ctx.fillText(pu.label, rRowX + 36, rowY + 16);
+    ctx.font = '9px Share Tech Mono, monospace';
+    ctx.fillStyle = '#444';
+    ctx.fillText(pu.desc, rRowX + 36, rowY + 28);
+
+    ctx.textAlign = 'right';
+    ctx.font = '10px Share Tech Mono, monospace';
+    ctx.fillStyle = rBought ? '#4f4' : (rAfford ? '#fa4' : '#333');
+    ctx.fillText(rBought ? 'HELD' : `¢${pu.cost}`, rRowX + rRowW - 8, rowY + 20);
+
+    if (!botActive && isRightSel) {
+      ctx.font = '12px monospace';
+      ctx.fillStyle = '#f64';
+      ctx.textAlign = 'left';
+      ctx.fillText('▶', rRowX + 1, rowY + 24);
+    }
+  });
+
+  // ── Controls hint at bottom ───────────────────────────────
+  const hintY = H - 12;
+  ctx.font = '9px Share Tech Mono, monospace';
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#2a3a2a';
+  const p1Up   = keybinds.p1Up.toUpperCase();
+  const p1Down = keybinds.p1Down.toUpperCase();
+  const p1Buy  = keybinds.p1Shop.toUpperCase();
+  ctx.fillText(`P1: [${p1Up}][${p1Down}] Navigate  [${p1Buy}] Buy`, W / 4, hintY);
+
+  if (!botActive) {
+    const p2Up   = keybinds.p2Up;
+    const p2Down = keybinds.p2Down;
+    const p2Buy  = keybinds.p2Shop;
+    ctx.fillStyle = '#3a1a1a';
+    ctx.fillText(`P2: [${p2Up}][${p2Down}] Navigate  [${p2Buy}] Buy`, 3 * W / 4, hintY);
+  } else {
+    ctx.fillStyle = '#3a1a1a';
+    ctx.fillText('BOT IS CHOOSING...', 3 * W / 4, hintY);
+  }
+}
+
 function drawShowerReminder() {
   const boxW = 340;
   const boxH = 82;
@@ -1061,6 +1377,14 @@ function loop(timestamp = performance.now()) {
         shouldDraw = true;
       }
     }
+  } else if (gameState === 'roundShop') {
+    // Tick shop countdown
+    shopTimerFrames -= elapsed / baseFrameMs;
+    if (shopTimerFrames <= 0) {
+      endBetweenRoundShop();
+    }
+    shouldDraw = true;
+    frameAccumulatorMs = 0;
   } else {
     frameAccumulatorMs = 0;
   }
