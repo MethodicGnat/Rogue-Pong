@@ -1,3 +1,36 @@
+// ── Sound System ─────────────────────────────
+const sounds = {
+  paddle: new Audio('sounds/paddle.wav'),
+  wall: new Audio('sounds/wall.wav'),
+  score: new Audio('sounds/score.wav'),
+  rpsWin: new Audio('sounds/rps-win.wav'),
+  rpsLose: new Audio('sounds/rps-lose.wav'),
+  button: new Audio('sounds/button.wav')
+};
+
+// Prevent delay when replaying sounds
+for (let key in sounds) {
+  sounds[key].preload = 'auto';
+}
+
+// Master volume control
+function playSound(name, volume = 1) {
+function playSound(name, volume = 1) {
+  const s = sounds[name];
+  if (!s) return;
+
+  s.currentTime = 0;
+
+  // Apply your SETTINGS volume
+  const master = parseFloat(document.getElementById('master-volume')?.value || 1);
+  const sfx    = parseFloat(document.getElementById('sfx-volume')?.value || 1);
+
+  s.volume = volume * master * sfx;
+
+  s.play();
+}
+
+
 const canvas = document.getElementById('c');
 const ctx = canvas.getContext('2d');
 const W = canvas.width, H = canvas.height;
@@ -695,6 +728,7 @@ function update(frameScale) {
         curvePending.left = false;
       }
       ghostBall = false;
+      playSound('paddle', 0.8);
       onPaddleHit();
     }
   }
@@ -720,12 +754,14 @@ function update(frameScale) {
   // Scoring
   if (ballX < 0) {
     rightScore++;
+    playSound('score',1);
     rightCoins += 3;
     checkWin();
     if (gameState === 'playing') resetBall(1);
   }
   if (ballX > W) {
     leftScore++;
+    playSound('score',1);
     leftCoins += 3;
     checkWin();
     if (gameState === 'playing') resetBall(-1);
