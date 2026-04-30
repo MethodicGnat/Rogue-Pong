@@ -417,6 +417,7 @@ function updateFlappyBird(frameScale) {
   // Bounce off top/bottom walls (no passing through)
   if (ballY <= 0)               { ballY = 0;             ballDY = Math.abs(ballDY); }
   if (ballY + BALL_SIZE >= H)   { ballY = H - BALL_SIZE; ballDY = -Math.abs(ballDY); }
+  playSfx('wall_hit');
 
   // Bounce off static centre walls
   for (const wall of fbWalls) {

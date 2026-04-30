@@ -128,10 +128,10 @@ function updateMusicUI() {
 // To add a new SFX: add an entry to SFX_FILES and call playSfx('key') anywhere.
 // Example: playSfx('paddle_hit'), playSfx('score'), playSfx('powerup')
 const SFX_FILES = {
-  // paddle_hit: 'sfx/paddle_hit.mp3',
-  // score:      'sfx/score.mp3',
-  // powerup:    'sfx/powerup.mp3',
-  // wall_hit:   'sfx/wall_hit.mp3',
+   paddle_hit: 'sfx/paddle_hit.mp3',
+   score:      'sfx/score.mp3',
+   powerup:    'sfx/powerup.mp3',
+   wall_hit:   'sfx/wall_hit.mp3',
 };
 
 const sfxCache = {};
@@ -347,6 +347,7 @@ function getPadH() { return SETTINGS.paddleSize[cfg.paddleSize]; } // base only
 
 // ── Activate item ─────────────────────────────────────────
 function activateItem(side) {
+  playSfx('powerup');
   const item = side === 'left' ? leftItem : rightItem;
   if (!item) return;
 
@@ -752,6 +753,7 @@ function update(frameScale) {
       ballDY = (rel - 0.5) * 2 * Math.abs(ballDX) * 1.2;
       ghostBall = false;
       onPaddleHit();
+      playSfx('paddle_hit');
     }
   }
 
@@ -766,6 +768,7 @@ function update(frameScale) {
       ballDY = (rel - 0.5) * 2 * Math.abs(ballDX) * 1.2;
       ghostBall = false;
       onPaddleHit();
+            playSfx('paddle_hit');
     }
   }
 
@@ -776,12 +779,14 @@ function update(frameScale) {
   // Scoring
   if (ballX < 0) {
     rightScore++;
+    playSfx('score');
     rightCoins += 3;
     checkWin();
     if (gameState === 'playing') resetBall(1);
   }
   if (ballX > W) {
     leftScore++;
+        playSfx('score');
     leftCoins += 3;
     checkWin();
     if (gameState === 'playing') resetBall(-1);
